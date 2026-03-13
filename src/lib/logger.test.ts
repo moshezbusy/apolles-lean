@@ -82,4 +82,30 @@ describe("logger", () => {
     >;
     expect(payload).not.toHaveProperty("context");
   });
+
+  it("serializes Error objects in context", () => {
+    const errorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    logger.error("failed", {
+      error: new Error("kaboom"),
+      metadata: { retriable: false },
+    });
+
+    const payload = JSON.parse(errorSpy.mock.calls[0]?.[0] as string) as Record<
+      string,
+      unknown
+    >;
+
+    expect(payload.context).toMatchObject({
+      error: {
+        name: "Error",
+        message: "kaboom",
+      },
+      metadata: {
+        retriable: false,
+      },
+    });
+  });
 });

@@ -7,12 +7,37 @@ interface LogEntry {
   context?: Record<string, unknown>;
 }
 
+function serializeValue(value: unknown): unknown {
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: value.message,
+      stack: value.stack,
+    };
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => serializeValue(item));
+  }
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, entryValue]) => [
+        key,
+        serializeValue(entryValue),
+      ]),
+    );
+  }
+
+  return value;
+}
+
 function log(level: LogLevel, message: string, context?: Record<string, unknown>) {
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,
     message,
-    ...(context ? { context } : {}),
+    ...(context ? { context: serializeValue(context) as Record<string, unknown> } : {}),
   };
 
   const output = JSON.stringify(entry);

@@ -5,6 +5,7 @@ import { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { z } from "zod";
 
+import { authConfig } from "~/lib/auth.config";
 import { db } from "~/lib/db";
 import { env } from "~/env";
 import { logger } from "~/lib/logger";
@@ -28,16 +29,14 @@ class InactiveAccountError extends CredentialsSignin {
   code = "inactive_account";
 }
 
-export const authConfig = {
+export const fullAuthConfig = {
+  ...authConfig,
   secret: env.NEXTAUTH_SECRET,
   adapter: PrismaAdapter(db),
   session: {
-    strategy: "database",
+    strategy: "jwt",
     maxAge: 60 * 30,
     updateAge: 5 * 60,
-  },
-  pages: {
-    signIn: "/login",
   },
   cookies: {
     sessionToken: {
@@ -99,21 +98,34 @@ export const authConfig = {
     }),
   ],
   callbacks: {
-    session: async ({ session, user }) => {
+    jwt: async ({ token, user }) => {
       const userWithRole = user as typeof user & { role?: Role };
+      const mutableToken = token as typeof token & { role?: Role };
 
-      if (!userWithRole.role) {
-        logger.warn("Session callback: role missing on user payload", {
-          userId: user.id,
-        });
+      if (user) {
+        if (!userWithRole.role) {
+          logger.warn("JWT callback: role missing on user payload", {
+            userId: user.id,
+          });
+        }
+
+        mutableToken.sub = user.id;
+        mutableToken.email = user.email;
+        mutableToken.name = user.name;
+        mutableToken.role = userWithRole.role ?? Role.AGENT;
       }
+
+      return mutableToken;
+    },
+    session: async ({ session, token }) => {
+      const tokenRole = (token as typeof token & { role?: Role }).role;
 
       return {
         ...session,
         user: {
           ...session.user,
-          id: user.id,
-          role: userWithRole.role ?? Role.AGENT,
+          id: token.sub ?? session.user.id,
+          role: tokenRole === Role.ADMIN ? Role.ADMIN : Role.AGENT,
         },
       };
     },
@@ -121,4 +133,4 @@ export const authConfig = {
 } satisfies Parameters<typeof NextAuth>[0];
 
 export const { handlers: authHandlers, auth, signIn, signOut } =
-  NextAuth(authConfig);
+  NextAuth(fullAuthConfig);

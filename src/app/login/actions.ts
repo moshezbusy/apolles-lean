@@ -12,10 +12,25 @@ const loginSchema = z.object({
 
 const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password";
 const INACTIVE_ACCOUNT_MESSAGE = "Account is inactive";
+const DEFAULT_REDIRECT = "/search";
 
 export type LoginState = {
   error: string | null;
 };
+
+function getRedirectTarget(formData: FormData) {
+  const callbackUrl = formData.get("callbackUrl");
+
+  if (
+    typeof callbackUrl === "string" &&
+    callbackUrl.startsWith("/") &&
+    !callbackUrl.startsWith("//")
+  ) {
+    return callbackUrl;
+  }
+
+  return DEFAULT_REDIRECT;
+}
 
 export async function loginAction(
   _previousState: LoginState,
@@ -34,7 +49,7 @@ export async function loginAction(
     await signIn("credentials", {
       email: parsed.data.email,
       password: parsed.data.password,
-      redirectTo: "/search",
+      redirectTo: getRedirectTarget(formData),
     });
   } catch (error) {
     if (error instanceof AuthError) {

@@ -22,11 +22,16 @@ function LoginSubmitButton() {
   );
 }
 
-export function LoginForm() {
+type LoginFormProps = {
+  callbackUrl?: string;
+};
+
+export function LoginForm({ callbackUrl }: LoginFormProps) {
   const [state, action] = useActionState(loginAction, initialLoginState);
 
   return (
     <form action={action} className="space-y-4">
+      <input type="hidden" name="callbackUrl" value={callbackUrl ?? ""} />
       <div className="space-y-2">
         <label htmlFor="email" className="text-sm font-medium text-text-primary">
           Email
@@ -58,7 +63,11 @@ export function LoginForm() {
       </div>
 
       {state.error ? (
-        <p className="rounded-md border border-error/20 bg-error-bg px-3 py-2 text-sm text-error">
+        <p
+          role="alert"
+          aria-live="polite"
+          className="rounded-md border border-error/20 bg-error-bg px-3 py-2 text-sm text-error"
+        >
           {state.error}
         </p>
       ) : null}

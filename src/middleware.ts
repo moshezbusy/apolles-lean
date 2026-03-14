@@ -1,10 +1,7 @@
 import { NextResponse } from "next/server";
-import NextAuth from "next-auth";
 
-import { authConfig } from "~/lib/auth.config";
+import { auth } from "~/lib/auth";
 import { getAuthRedirectDecision } from "~/lib/auth-routing";
-
-const { auth } = NextAuth(authConfig);
 
 export default auth((request) => {
   const pathname = request.nextUrl.pathname;

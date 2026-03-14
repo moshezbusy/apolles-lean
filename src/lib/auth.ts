@@ -34,7 +34,7 @@ export const fullAuthConfig = {
   secret: env.NEXTAUTH_SECRET,
   adapter: PrismaAdapter(db),
   session: {
-    strategy: "jwt",
+    strategy: "database",
     maxAge: 60 * 30,
     updateAge: 5 * 60,
   },
@@ -98,34 +98,21 @@ export const fullAuthConfig = {
     }),
   ],
   callbacks: {
-    jwt: async ({ token, user }) => {
+    session: async ({ session, user }) => {
       const userWithRole = user as typeof user & { role?: Role };
-      const mutableToken = token as typeof token & { role?: Role };
 
-      if (user) {
-        if (!userWithRole.role) {
-          logger.warn("JWT callback: role missing on user payload", {
-            userId: user.id,
-          });
-        }
-
-        mutableToken.sub = user.id;
-        mutableToken.email = user.email;
-        mutableToken.name = user.name;
-        mutableToken.role = userWithRole.role ?? Role.AGENT;
+      if (!userWithRole.role) {
+        logger.warn("Session callback: role missing on user payload", {
+          userId: user.id,
+        });
       }
-
-      return mutableToken;
-    },
-    session: async ({ session, token }) => {
-      const tokenRole = (token as typeof token & { role?: Role }).role;
 
       return {
         ...session,
         user: {
           ...session.user,
-          id: token.sub ?? session.user.id,
-          role: tokenRole === Role.ADMIN ? Role.ADMIN : Role.AGENT,
+          id: user.id,
+          role: userWithRole.role ?? Role.AGENT,
         },
       };
     },

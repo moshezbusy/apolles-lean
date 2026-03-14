@@ -1,6 +1,15 @@
 import { LoginForm } from "~/app/login/login-form";
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams?: Promise<{
+    callbackUrl?: string;
+  }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const callbackUrl = resolvedSearchParams?.callbackUrl;
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-surface px-6 py-20">
       <section className="w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-sm">
@@ -15,8 +24,9 @@ export default function LoginPage() {
         </p>
 
         <div className="mt-6">
-          <LoginForm />
+          <LoginForm callbackUrl={callbackUrl} />
         </div>
+        {callbackUrl ? <span className="sr-only">Return to requested page after login.</span> : null}
       </section>
     </main>
   );

@@ -1,9 +1,14 @@
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { expediaAdapter, EXPEDIA_SEARCH_ENDPOINT, EXPEDIA_TIMEOUT_MS } from "~/features/suppliers/adapters/expedia-adapter";
 import {
-  createLoggedSupplierError,
+  expediaAdapter,
+  EXPEDIA_AVAILABILITY_ENDPOINT,
+  EXPEDIA_CONTENT_ENDPOINT,
+  EXPEDIA_REGION_ENDPOINT,
+  EXPEDIA_TIMEOUT_MS,
+} from "~/features/suppliers/adapters/expedia-adapter";
+import {
   isLoggedSupplierError,
   withSupplierApiLogging,
 } from "~/features/suppliers/supplier-logger";
@@ -32,13 +37,21 @@ vi.mock("~/features/suppliers/supplier-logger", () => ({
 }));
 
 const SEARCH_INPUT = {
-  destination: "Rome",
+  destination: "region:602962",
   checkIn: "2026-08-01",
   checkOut: "2026-08-05",
   rooms: 1,
   adults: 2,
   childrenAges: [6],
 };
+
+function getAuthHeader(timestamp: string) {
+  const signature = createHash("sha512")
+    .update(`expedia-keyexpedia-secret${timestamp}`)
+    .digest("hex");
+
+  return `EAN APIKey=expedia-key,Signature=${signature},timestamp=${timestamp}`;
+}
 
 describe("expediaAdapter.search", () => {
   beforeEach(() => {
@@ -50,63 +63,105 @@ describe("expediaAdapter.search", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.doUnmock("~/env");
   });
 
-  it("maps input, signs requests with SHA-512 auth, and normalizes successful responses", async () => {
+  it("uses Rapid auth, region property mapping, and normalized availability/content responses", async () => {
     vi.spyOn(Date, "now").mockReturnValue(1_700_000_000_000);
 
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          data: [
-            {
-              property_id: "EXP-1001",
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            property_ids_expanded: ["19248"],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            "19248": {
+              property_id: "19248",
               name: "Rome Central Hotel",
-              star_rating: 4,
-              address: { line1: "Rome, Italy" },
-              images: [{ url: "https://example.com/expedia-rome.jpg" }],
-              rates: [
+              address: { line_1: "Rome, Italy", city: "Rome", country_code: "IT" },
+              ratings: { property: { rating: "4.0" } },
+              images: [{ links: { "70px": { href: "https://example.com/expedia-rome.jpg" } } }],
+              checkin: {
+                instructions: "Front desk open 24/7",
+                special_instructions: "Ring bell after midnight",
+              },
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              property_id: "19248",
+              status: "available",
+              rooms: [
                 {
+                  id: "room-1",
                   room_name: "Standard Room",
-                  board_type: "Room Only",
-                  total_price: { amount: 240, currency: "USD" },
-                  refundable: true,
-                  cancellation_policy: {
-                    free_cancellation_until: "2026-07-30T00:00:00.000Z",
-                    text: "Free cancellation before Jul 30",
-                  },
-                  metadata: {
-                    tax_disclaimer_text:
-                      "The taxes are tax recovery charges paid to vendors.",
-                    cancellation_policy_text: "Free cancellation before Jul 30",
-                    check_in_instructions: "Front desk open 24/7",
-                    payment_processing_country: "US",
-                  },
-                },
-                {
-                  room_name: "Premium Room",
-                  board_type: "Breakfast",
-                  total_price: { amount: 300, currency: "USD" },
-                  refundable: true,
-                  cancellation_policy: {
-                    free_cancellation_until: "2026-07-30T00:00:00.000Z",
-                    text: "Free cancellation before Jul 30",
-                  },
-                  metadata: {
-                    tax_disclaimer_text:
-                      "The taxes are tax recovery charges paid to vendors.",
-                    cancellation_policy_text: "Free cancellation before Jul 30",
-                    check_in_instructions: "Front desk open 24/7",
-                    payment_processing_country: "US",
-                  },
+                  rates: [
+                    {
+                      id: "rate-1",
+                      status: "available",
+                      refundable: true,
+                      current_refundability: "refundable",
+                      merchant_of_record: "expedia",
+                      amenities: {
+                        meal: { name: "Room Only" },
+                      },
+                      cancel_penalties: [
+                        {
+                          start: "2026-07-30T00:00:00.000Z",
+                          amount: "10.00",
+                        },
+                      ],
+                      occupancy_pricing: {
+                        "2-6": {
+                          totals: {
+                            property_inclusive: {
+                              request_currency: {
+                                value: "240.00",
+                                currency: "USD",
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                    {
+                      id: "rate-2",
+                      status: "available",
+                      refundable: false,
+                      current_refundability: "non_refundable",
+                      occupancy_pricing: {
+                        "2-6": {
+                          totals: {
+                            property_inclusive: {
+                              request_currency: {
+                                value: "300.00",
+                                currency: "USD",
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
                 },
               ],
             },
-          ],
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
-    );
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
 
     vi.stubGlobal("fetch", fetchMock);
 
@@ -115,10 +170,10 @@ describe("expediaAdapter.search", () => {
     expect(result).toEqual([
       {
         supplier: "expedia",
-        supplierHotelId: "EXP-1001",
+        supplierHotelId: "19248",
         hotelName: "Rome Central Hotel",
         starRating: 4,
-        address: "Rome, Italy",
+        address: "Rome, Italy, Rome",
         images: ["https://example.com/expedia-rome.jpg"],
         lowestRate: {
           supplierAmount: 240,
@@ -128,62 +183,63 @@ describe("expediaAdapter.search", () => {
           cancellationPolicy: {
             isRefundable: true,
             freeCancellationUntil: "2026-07-30T00:00:00.000Z",
-            description: "Free cancellation before Jul 30",
+            description: "Free cancellation until 2026-07-30T00:00:00.000Z",
           },
           isCancellable: true,
         },
         supplierMetadata: {
           expedia: {
-            taxDisclaimerText:
-              "The taxes are tax recovery charges paid to vendors.",
-            cancellationPolicyText: "Free cancellation before Jul 30",
+            cancellationPolicyText: "Free cancellation until 2026-07-30T00:00:00.000Z",
             checkInInstructions: "Front desk open 24/7",
-            paymentProcessingCountry: "US",
+            paymentProcessingCountry: "IT",
           },
         },
       },
     ]);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
 
     const timestamp = "1700000000";
-    const expectedSignature = createHash("sha512")
-      .update(`expedia-keyexpedia-secret${timestamp}`)
-      .digest("hex");
+    const expectedAuth = getAuthHeader(timestamp);
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      EXPEDIA_SEARCH_ENDPOINT,
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      `${EXPEDIA_REGION_ENDPOINT}/602962?language=en-US&supply_source=expedia&include=property_ids_expanded`,
       expect.objectContaining({
-        method: "POST",
+        method: "GET",
         signal: expect.any(AbortSignal),
         headers: expect.objectContaining({
-          "X-Expedia-Api-Key": "expedia-key",
-          "X-Expedia-Timestamp": timestamp,
-          "X-Expedia-Signature": expectedSignature,
-          "Content-Type": "application/json",
+          Accept: "application/json",
+          "Accept-Encoding": "gzip",
+          Authorization: expectedAuth,
+          "User-Agent": "Apolles/0.1.0",
         }),
       }),
     );
 
-    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    const requestBody = JSON.parse((requestInit.body as string) ?? "{}");
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `${EXPEDIA_CONTENT_ENDPOINT}?language=en-US&supply_source=expedia&include=name&include=address&include=images&include=ratings&include=checkin&property_id=19248`,
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({ Authorization: expectedAuth }),
+      }),
+    );
 
-    expect(requestBody).toEqual({
-      destination: "Rome",
-      checkIn: "2026-08-01",
-      checkOut: "2026-08-05",
-      rooms: 1,
-      adults: 2,
-      childrenAges: [6],
-      children: 1,
-    });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      `${EXPEDIA_AVAILABILITY_ENDPOINT}?checkin=2026-08-01&checkout=2026-08-05&currency=USD&country_code=US&language=en-US&rate_plan_count=1&sales_channel=agent_tool&sales_environment=hotel_only&occupancy=2-6&property_id=19248`,
+      expect.objectContaining({
+        method: "GET",
+        headers: expect.objectContaining({ Authorization: expectedAuth }),
+      }),
+    );
 
     expect(withSupplierApiLogging).toHaveBeenCalledWith(
       expect.objectContaining({
         supplier: "expedia",
         method: "search",
-        endpoint: EXPEDIA_SEARCH_ENDPOINT,
-        requestBody,
+        endpoint: EXPEDIA_AVAILABILITY_ENDPOINT,
       }),
     );
   });
@@ -235,12 +291,26 @@ describe("expediaAdapter.search", () => {
   });
 
   it("returns SUPPLIER_ERROR on malformed payload", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: {} }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ property_ids_expanded: ["19248"] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ "19248": { name: "Rome Central Hotel" } }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: {} }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
 
     vi.stubGlobal("fetch", fetchMock);
 
@@ -249,9 +319,9 @@ describe("expediaAdapter.search", () => {
     });
   });
 
-  it("returns an empty array when supplier returns no hotels", async () => {
+  it("returns an empty array when the resolved region has no properties", async () => {
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: [] }), {
+      new Response(JSON.stringify({ property_ids_expanded: [] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
@@ -264,53 +334,72 @@ describe("expediaAdapter.search", () => {
     expect(result).toEqual([]);
   });
 
-  it("keeps valid hotels when response contains malformed entries", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          data: [
+  it("keeps valid hotels when availability response contains malformed entries", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ property_ids_expanded: ["19248", "99999"] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            "19248": {
+              name: "Valid Hotel",
+              address: { line_1: "Valid Address", city: "Rome", country_code: "IT" },
+              ratings: { property: { rating: "5.0" } },
+            },
+            "99999": {
+              name: "Broken Hotel",
+              address: { line_1: "Broken Address", city: "Rome", country_code: "IT" },
+              ratings: { property: { rating: "4.0" } },
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
             {
-                property_id: "EXP-2001",
-                name: "Valid Hotel",
-                star_rating: 5,
-                address: { line1: "Valid Address" },
-                rates: [
+              property_id: "19248",
+              rooms: [
                 {
                   room_name: "Suite",
-                  board_type: "Breakfast",
-                  total_price: { amount: 500, currency: "USD" },
-                  refundable: true,
-                  cancellation_policy: {
-                    text: "Free cancellation",
-                    free_cancellation_until: "2026-07-30T00:00:00.000Z",
-                  },
+                  rates: [
+                    {
+                      refundable: true,
+                      occupancy_pricing: {
+                        "2-6": {
+                          totals: {
+                            property_inclusive: {
+                              request_currency: { value: "500.00", currency: "USD" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
                 },
               ],
             },
             {
-              property_id: "EXP-BROKEN",
-              name: "Malformed Hotel",
-              star_rating: 4,
-              rates: [
-                {
-                  room_name: "Broken",
-                  board_type: "Room Only",
-                  total_price: { amount: 100 },
-                },
-              ],
+              property_id: "99999",
+              rooms: [{ room_name: "Broken", rates: [{}] }],
             },
-          ],
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      ),
-    );
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
 
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await expediaAdapter.search(SEARCH_INPUT);
 
     expect(result).toHaveLength(1);
-    expect(result[0]?.supplierHotelId).toBe("EXP-2001");
+    expect(result[0]?.supplierHotelId).toBe("19248");
   });
 
   it("returns RATE_UNAVAILABLE for no-availability supplier failures", async () => {
@@ -342,7 +431,7 @@ describe("expediaAdapter.search", () => {
     }));
 
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ data: [] }), {
+      new Response(JSON.stringify({ property_ids_expanded: [] }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
@@ -353,15 +442,13 @@ describe("expediaAdapter.search", () => {
     await expediaAdapter.search(SEARCH_INPUT);
 
     expect(fetchMock).toHaveBeenCalledWith(
-      EXPEDIA_SEARCH_ENDPOINT,
+      expect.stringContaining(`${EXPEDIA_REGION_ENDPOINT}/602962`),
       expect.objectContaining({
         headers: expect.objectContaining({
-          "X-Expedia-Api-Key": "validated-expedia-key",
+          Authorization: expect.stringContaining("EAN APIKey=validated-expedia-key"),
         }),
       }),
     );
-
-    vi.doUnmock("~/env");
   });
 
   it("throws SUPPLIER_ERROR when credentials are missing", async () => {
@@ -375,8 +462,19 @@ describe("expediaAdapter.search", () => {
     await expect(expediaAdapter.search(SEARCH_INPUT)).rejects.toMatchObject({
       code: ErrorCodes.SUPPLIER_ERROR,
     });
+  });
 
-    vi.doUnmock("~/env");
+  it("throws SUPPLIER_ERROR when destination is not a mapped Expedia identifier", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+
+    await expect(
+      expediaAdapter.search({
+        ...SEARCH_INPUT,
+        destination: "Rome",
+      }),
+    ).rejects.toMatchObject({
+      code: ErrorCodes.SUPPLIER_ERROR,
+    });
   });
 });
 

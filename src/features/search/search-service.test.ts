@@ -100,14 +100,14 @@ describe("searchHotels", () => {
         ...TBO_RESULT,
         lowestRate: {
           ...TBO_RESULT.lowestRate,
-          supplierAmount: 112,
+          displayAmount: 112,
         },
       },
       {
         ...EXPEDIA_RESULT,
         lowestRate: {
           ...EXPEDIA_RESULT.lowestRate,
-          supplierAmount: 224,
+          displayAmount: 224,
         },
       },
     ]);
@@ -135,7 +135,7 @@ describe("searchHotels", () => {
         ...EXPEDIA_RESULT,
         lowestRate: {
           ...EXPEDIA_RESULT.lowestRate,
-          supplierAmount: 224,
+          displayAmount: 224,
         },
       },
     ]);
@@ -158,7 +158,7 @@ describe("searchHotels", () => {
         ...TBO_RESULT,
         lowestRate: {
           ...TBO_RESULT.lowestRate,
-          supplierAmount: 112,
+          displayAmount: 112,
         },
       },
     ]);

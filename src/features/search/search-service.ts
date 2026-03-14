@@ -24,7 +24,7 @@ function applyPlatformMarkup(
     ...result,
     lowestRate: {
       ...result.lowestRate,
-      supplierAmount: applyMarkup(result.lowestRate.supplierAmount, markupPercentage),
+      displayAmount: applyMarkup(result.lowestRate.supplierAmount, markupPercentage),
     },
   }));
 }

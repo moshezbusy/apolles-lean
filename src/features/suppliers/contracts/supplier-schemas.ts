@@ -10,6 +10,7 @@ export const cancellationPolicySchema = z.object({
 
 export const lowestRateSchema = z.object({
   supplierAmount: z.number().finite().nonnegative(),
+  displayAmount: z.number().finite().nonnegative().optional(),
   currency: z.string().min(3).max(3),
   roomName: z.string().min(1),
   mealPlan: z.string().min(1),

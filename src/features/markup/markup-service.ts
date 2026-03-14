@@ -4,6 +4,7 @@ import { db } from "~/lib/db";
 import { AppError, ErrorCodes } from "~/lib/errors";
 
 export const MARKUP_PERCENTAGE_KEY = "markup_percentage";
+export const MAX_MARKUP_PERCENTAGE = 100;
 
 type MarkupSettingsReader = Pick<PrismaClient, "platformSetting">;
 
@@ -17,9 +18,7 @@ function assertNonNegativeFinite(value: number, label: string): void {
 }
 
 function roundToCents(value: number): number {
-  // NOTE: This Number.EPSILON approach is intentionally scoped to normal currency
-  // ranges used by booking prices. It is not suitable for extremely large values.
-  return Math.round((value + Number.EPSILON) * 100) / 100;
+  return Number(Math.round(Number(`${value}e2`)) + "e-2");
 }
 
 export function applyMarkup(supplierAmount: number, markupPercentage: number): number {
@@ -47,10 +46,14 @@ export async function getMarkupPercentage(
 
   const parsedPercentage = Number(setting.value);
 
-  if (!Number.isFinite(parsedPercentage) || parsedPercentage < 0) {
+  if (
+    !Number.isFinite(parsedPercentage) ||
+    parsedPercentage < 0 ||
+    parsedPercentage > MAX_MARKUP_PERCENTAGE
+  ) {
     throw new AppError(
       ErrorCodes.VALIDATION_ERROR,
-      "Platform markup percentage is invalid",
+      `Platform markup percentage must be between 0 and ${MAX_MARKUP_PERCENTAGE}`,
     );
   }
 

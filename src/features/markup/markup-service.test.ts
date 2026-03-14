@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { applyMarkup, getMarkupPercentage, MARKUP_PERCENTAGE_KEY } from "~/features/markup/markup-service";
+import {
+  applyMarkup,
+  getMarkupPercentage,
+  MARKUP_PERCENTAGE_KEY,
+  MAX_MARKUP_PERCENTAGE,
+} from "~/features/markup/markup-service";
 import { AppError, ErrorCodes } from "~/lib/errors";
 
 describe("applyMarkup", () => {
@@ -27,6 +32,7 @@ describe("applyMarkup", () => {
   it("rounds to cent precision with half-up behavior", () => {
     expect(applyMarkup(10.005, 0)).toBe(10.01);
     expect(applyMarkup(1.005, 10)).toBe(1.11);
+    expect(applyMarkup(10.075, 0)).toBe(10.08);
   });
 
   it("throws VALIDATION_ERROR for negative amount", () => {
@@ -71,6 +77,18 @@ describe("getMarkupPercentage", () => {
     const dbMock = {
       platformSetting: {
         findUnique: vi.fn().mockResolvedValue({ value: "not-a-number" }),
+      },
+    };
+
+    await expect(getMarkupPercentage(dbMock as never)).rejects.toMatchObject({
+      code: ErrorCodes.VALIDATION_ERROR,
+    });
+  });
+
+  it("throws VALIDATION_ERROR when markup setting exceeds the allowed maximum", async () => {
+    const dbMock = {
+      platformSetting: {
+        findUnique: vi.fn().mockResolvedValue({ value: String(MAX_MARKUP_PERCENTAGE + 0.1) }),
       },
     };
 

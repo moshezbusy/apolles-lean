@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { searchHotels } from "~/features/search/search-service";
+import { SEARCH_TIMEOUT_MS, searchHotels } from "~/features/search/search-service";
 import { expediaAdapter } from "~/features/suppliers/adapters/expedia-adapter";
 import { tboAdapter } from "~/features/suppliers/adapters/tbo-adapter";
 import { applyMarkup, getMarkupPercentage } from "~/features/markup/markup-service";
@@ -100,6 +100,7 @@ describe("searchHotels", () => {
         ...TBO_RESULT,
         lowestRate: {
           ...TBO_RESULT.lowestRate,
+          supplierAmount: 112,
           displayAmount: 112,
         },
       },
@@ -107,6 +108,7 @@ describe("searchHotels", () => {
         ...EXPEDIA_RESULT,
         lowestRate: {
           ...EXPEDIA_RESULT.lowestRate,
+          supplierAmount: 224,
           displayAmount: 224,
         },
       },
@@ -135,6 +137,7 @@ describe("searchHotels", () => {
         ...EXPEDIA_RESULT,
         lowestRate: {
           ...EXPEDIA_RESULT.lowestRate,
+          supplierAmount: 224,
           displayAmount: 224,
         },
       },
@@ -158,10 +161,53 @@ describe("searchHotels", () => {
         ...TBO_RESULT,
         lowestRate: {
           ...TBO_RESULT.lowestRate,
+          supplierAmount: 112,
           displayAmount: 112,
         },
       },
     ]);
+  });
+
+  it("keeps results flat and supplier-specific when both suppliers return multiple hotels", async () => {
+    vi.mocked(tboAdapter.search).mockResolvedValue([TBO_RESULT, { ...TBO_RESULT, supplierHotelId: "TB-002" }]);
+    vi.mocked(expediaAdapter.search).mockResolvedValue([
+      EXPEDIA_RESULT,
+      { ...EXPEDIA_RESULT, supplierHotelId: "EXP-002" },
+    ]);
+
+    const result = await searchHotels(SEARCH_INPUT);
+
+    expect(result.results).toHaveLength(4);
+    expect(result.results.every((entry) => !Array.isArray(entry))).toBe(true);
+    expect(result.results.map((entry) => entry.supplier)).toEqual([
+      "tbo",
+      "tbo",
+      "expedia",
+      "expedia",
+    ]);
+  });
+
+  it("marks a supplier failed when its search exceeds the story timeout budget", async () => {
+    vi.useFakeTimers();
+
+    vi.mocked(tboAdapter.search).mockImplementation(
+      () => new Promise(() => undefined),
+    );
+    vi.mocked(expediaAdapter.search).mockResolvedValue([EXPEDIA_RESULT]);
+
+    const resultPromise = searchHotels(SEARCH_INPUT);
+
+    await vi.advanceTimersByTimeAsync(SEARCH_TIMEOUT_MS);
+
+    const result = await resultPromise;
+
+    expect(result.supplierStatus).toEqual({
+      tbo: "failed",
+      expedia: "success",
+    });
+    expect(result.results).toHaveLength(1);
+
+    vi.useRealTimers();
   });
 
   it("returns empty results with both suppliers failed when both reject", async () => {

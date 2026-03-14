@@ -3,6 +3,9 @@ import type { SupplierSearchResult } from "~/features/suppliers/contracts/suppli
 import { expediaAdapter } from "~/features/suppliers/adapters/expedia-adapter";
 import { tboAdapter } from "~/features/suppliers/adapters/tbo-adapter";
 import { applyMarkup, getMarkupPercentage } from "~/features/markup/markup-service";
+import { AppError, ErrorCodes } from "~/lib/errors";
+
+export const SEARCH_TIMEOUT_MS = 5_000;
 
 export type SupplierExecutionStatus = "success" | "failed";
 
@@ -20,21 +23,53 @@ function applyPlatformMarkup(
   results: SupplierSearchResult[],
   markupPercentage: number,
 ): SupplierSearchResult[] {
-  return results.map((result) => ({
-    ...result,
-    lowestRate: {
-      ...result.lowestRate,
-      displayAmount: applyMarkup(result.lowestRate.supplierAmount, markupPercentage),
-    },
-  }));
+  return results.map((result) => {
+    const markedUpAmount = applyMarkup(result.lowestRate.supplierAmount, markupPercentage);
+
+    return {
+      ...result,
+      lowestRate: {
+        ...result.lowestRate,
+        supplierAmount: markedUpAmount,
+        displayAmount: markedUpAmount,
+      },
+    };
+  });
+}
+
+async function withSearchTimeout<T>(
+  promise: Promise<T>,
+  supplier: "tbo" | "expedia",
+): Promise<T> {
+  return await new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => {
+      reject(
+        new AppError(
+          ErrorCodes.SUPPLIER_TIMEOUT,
+          `${supplier.toUpperCase()} supplier request timed out after 5 seconds`,
+        ),
+      );
+    }, SEARCH_TIMEOUT_MS);
+
+    void promise.then(
+      (value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
 }
 
 export async function searchHotels(
   input: SupplierSearchInput,
 ): Promise<SearchServiceResult> {
   const [tboSearchResult, expediaSearchResult] = await Promise.allSettled([
-    tboAdapter.search(input),
-    expediaAdapter.search(input),
+    withSearchTimeout(tboAdapter.search(input), "tbo"),
+    withSearchTimeout(expediaAdapter.search(input), "expedia"),
   ]);
 
   const supplierStatus: SearchSupplierStatus = {

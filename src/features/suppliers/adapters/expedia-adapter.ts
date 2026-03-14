@@ -94,7 +94,8 @@ type ExpediaCredentials = {
 
 type ExpediaDestinationTarget =
   | { kind: "property_ids"; propertyIds: string[] }
-  | { kind: "region"; regionId: string };
+  | { kind: "region"; regionId: string }
+  | { kind: "query"; query: string };
 
 type ExpediaResolvedProperty = {
   propertyId: string;
@@ -199,10 +200,11 @@ function parseDestinationTarget(destination: string): ExpediaDestinationTarget {
     return { kind: "region", regionId: regionMatch[1] };
   }
 
-  throw new AppError(
-    ErrorCodes.SUPPLIER_ERROR,
-    "Expedia search currently requires a mapped destination in the form region:<id> or property:<id>",
-  );
+  if (trimmedDestination.length > 0) {
+    return { kind: "query", query: trimmedDestination };
+  }
+
+  throw new AppError(ErrorCodes.VALIDATION_ERROR, "Destination is required");
 }
 
 function buildOccupancyValue(input: SupplierSearchInput): string {
@@ -260,6 +262,12 @@ function buildRegionRequestQuery(): URLSearchParams {
     supply_source: "expedia",
   });
   params.append("include", "property_ids_expanded");
+  return params;
+}
+
+function buildRegionSearchQuery(destinationQuery: string): URLSearchParams {
+  const params = buildRegionRequestQuery();
+  params.append("query", destinationQuery);
   return params;
 }
 
@@ -632,15 +640,14 @@ async function resolvePropertyIds(
     return destination.propertyIds;
   }
 
-  const regionUrl = `${EXPEDIA_REGION_ENDPOINT}/${destination.regionId}?${buildRegionRequestQuery().toString()}`;
+  const regionUrl =
+    destination.kind === "region"
+      ? `${EXPEDIA_REGION_ENDPOINT}/${destination.regionId}?${buildRegionRequestQuery().toString()}`
+      : `${EXPEDIA_REGION_ENDPOINT}?${buildRegionSearchQuery(destination.query).toString()}`;
   const response = await fetchRapidJson(regionUrl, credentials);
 
-  const payload = response.payload as ExpediaRegionResponse;
-  const propertyIds = Array.isArray(payload?.property_ids_expanded)
-    ? payload.property_ids_expanded
-    : Array.isArray(payload?.property_ids)
-      ? payload.property_ids
-      : [];
+  const payload = response.payload;
+  const propertyIds = extractPropertyIdsFromRegionPayload(payload);
 
   const normalizedPropertyIds = propertyIds
     .filter((propertyId): propertyId is string => typeof propertyId === "string")
@@ -651,6 +658,41 @@ async function resolvePropertyIds(
   }
 
   return normalizedPropertyIds;
+}
+
+function extractPropertyIdsFromRegionPayload(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) {
+    return payload.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return [];
+      }
+
+      const regionEntry = entry as ExpediaRegionResponse;
+      if (Array.isArray(regionEntry.property_ids_expanded)) {
+        return regionEntry.property_ids_expanded;
+      }
+
+      if (Array.isArray(regionEntry.property_ids)) {
+        return regionEntry.property_ids;
+      }
+
+      return [];
+    });
+  }
+
+  if (payload && typeof payload === "object") {
+    const regionEntry = payload as ExpediaRegionResponse;
+
+    if (Array.isArray(regionEntry.property_ids_expanded)) {
+      return regionEntry.property_ids_expanded;
+    }
+
+    if (Array.isArray(regionEntry.property_ids)) {
+      return regionEntry.property_ids;
+    }
+  }
+
+  return [];
 }
 
 async function search(input: SupplierSearchInput): Promise<SupplierSearchResult[]> {

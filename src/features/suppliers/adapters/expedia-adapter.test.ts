@@ -465,16 +465,76 @@ describe("expediaAdapter.search", () => {
   });
 
   it("throws SUPPLIER_ERROR when destination is not a mapped Expedia identifier", async () => {
-    vi.stubGlobal("fetch", vi.fn());
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              region_id: "602962",
+              property_ids_expanded: ["19248"],
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            "19248": {
+              name: "Rome Central Hotel",
+              address: { line_1: "Rome, Italy", city: "Rome", country_code: "IT" },
+              ratings: { property: { rating: "4.0" } },
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify([
+            {
+              property_id: "19248",
+              rooms: [
+                {
+                  room_name: "Standard Room",
+                  rates: [
+                    {
+                      refundable: true,
+                      occupancy_pricing: {
+                        "2-6": {
+                          totals: {
+                            property_inclusive: {
+                              request_currency: { value: "240.00", currency: "USD" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  ],
+                },
+              ],
+            },
+          ]),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      );
 
-    await expect(
-      expediaAdapter.search({
-        ...SEARCH_INPUT,
-        destination: "Rome",
-      }),
-    ).rejects.toMatchObject({
-      code: ErrorCodes.SUPPLIER_ERROR,
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await expediaAdapter.search({
+      ...SEARCH_INPUT,
+      destination: "Rome",
     });
+
+    expect(result).toHaveLength(1);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      `${EXPEDIA_REGION_ENDPOINT}?language=en-US&supply_source=expedia&include=property_ids_expanded&query=Rome`,
+      expect.objectContaining({
+        method: "GET",
+      }),
+    );
   });
 });
 

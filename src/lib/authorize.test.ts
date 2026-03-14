@@ -79,7 +79,7 @@ describe("buildBookingScope", () => {
   it("returns scoped filter for agents", () => {
     const session = createSession("AGENT", "agent-42");
 
-    expect(buildBookingScope(session)).toEqual({ agentId: "agent-42" });
+    expect(buildBookingScope(session)).toEqual({ where: { agentId: "agent-42" } });
   });
 
   it("returns unscoped filter for admins", () => {
@@ -146,6 +146,29 @@ describe("runProtectedAction", () => {
     expect(validate).toHaveBeenCalledOnce();
     expect(execute).toHaveBeenCalledOnce();
     expect(result).toEqual({ success: true, data: "OK" });
+  });
+
+  it("skips validation when role check fails", async () => {
+    const validate = vi.fn((input: { value: string }) => input);
+    const execute = vi.fn(async () => "ok");
+
+    const result = await runProtectedAction({
+      session: createSession("AGENT"),
+      role: "admin",
+      input: { value: "x" },
+      validate,
+      execute,
+    });
+
+    expect(validate).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      success: false,
+      error: {
+        code: ErrorCodes.NOT_AUTHORIZED,
+        message: "You are not authorized to perform this action",
+      },
+    });
   });
 
   it("returns VALIDATION_ERROR when validation fails", async () => {

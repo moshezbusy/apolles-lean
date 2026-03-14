@@ -28,6 +28,10 @@ export type ActionResult<TData> =
   | { success: true; data: TData }
   | { success: false; error: ActionError };
 
+export type BookingScope =
+  | { where: { agentId: string } }
+  | { where?: undefined };
+
 type ProtectedActionParams<TInput, TData> = {
   session: SessionLike;
   input: TInput;
@@ -40,28 +44,32 @@ function toPrismaRole(role: AuthorizationRole): Role {
   return role === "admin" ? "ADMIN" : "AGENT";
 }
 
-export function requireAuth(session: SessionLike): asserts session is AuthenticatedSession {
+function assertAuthenticatedSession(session: SessionLike): asserts session is AuthenticatedSession {
   if (!session?.user?.id || !session.user.role) {
     throw new AppError(ErrorCodes.NOT_AUTHENTICATED, "Authentication required");
   }
 }
 
+export function requireAuth(session: SessionLike): asserts session is AuthenticatedSession {
+  assertAuthenticatedSession(session);
+}
+
 export function requireRole(session: SessionLike, role: AuthorizationRole): void {
-  requireAuth(session);
+  assertAuthenticatedSession(session);
 
   if (session.user.role !== "ADMIN" && session.user.role !== toPrismaRole(role)) {
     throw new AppError(ErrorCodes.NOT_AUTHORIZED, "You are not authorized to perform this action");
   }
 }
 
-export function buildBookingScope(session: SessionLike): { agentId?: string } {
-  requireAuth(session);
+export function buildBookingScope(session: SessionLike): BookingScope {
+  assertAuthenticatedSession(session);
 
   if (session.user.role === "ADMIN") {
     return {};
   }
 
-  return { agentId: session.user.id };
+  return { where: { agentId: session.user.id } };
 }
 
 export async function runProtectedAction<TInput, TData>({

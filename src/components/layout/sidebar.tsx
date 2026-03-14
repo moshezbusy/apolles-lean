@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Link from "next/link";
 import { type Role } from "@prisma/client";
 import {
@@ -37,6 +38,42 @@ type SidebarProps = {
 
 function RoleLabel({ role }: { role: Role }) {
   return <span className="text-xs text-text-muted">{role === "ADMIN" ? "Admin" : "Agent"}</span>;
+}
+
+export function SidebarIdentity({
+  userName,
+  role,
+  collapsed,
+}: {
+  userName: string;
+  role: Role;
+  collapsed: boolean;
+}) {
+  return (
+    <div
+      className={collapsed ? "text-center" : ""}
+      aria-label={`${userName} (${role === "ADMIN" ? "Admin" : "Agent"})`}
+    >
+      <p
+        className={
+          collapsed
+            ? "text-[10px] leading-tight font-medium text-white break-words"
+            : "text-sm font-medium text-white"
+        }
+      >
+        {userName}
+      </p>
+      <span
+        className={
+          collapsed
+            ? "mt-1 block text-[10px] leading-tight text-text-muted"
+            : "text-xs text-text-muted"
+        }
+      >
+        {role === "ADMIN" ? "Admin" : "Agent"}
+      </span>
+    </div>
+  );
 }
 
 function NavSections({
@@ -172,8 +209,7 @@ export function Sidebar({ userName, role }: SidebarProps) {
           <NavSections role={role} pathname={pathname} collapsed={collapsed} />
         </nav>
         <div className={`border-t border-white/20 py-4 ${collapsed ? "px-2" : "px-4"}`}>
-          {!collapsed ? <p className="text-sm font-medium text-white">{userName}</p> : null}
-          {!collapsed ? <RoleLabel role={role} /> : null}
+          <SidebarIdentity userName={userName} role={role} collapsed={collapsed} />
           <form action={logoutAction} className={collapsed ? "mt-0" : "mt-3"}>
             <button type="submit" className="text-sm text-white underline decoration-white/40 underline-offset-4">
               {collapsed ? (
@@ -195,8 +231,7 @@ export function Sidebar({ userName, role }: SidebarProps) {
             <NavSections role={role} pathname={pathname} close={() => setOpen(false)} />
           </nav>
           <div className="mt-5 border-t border-white/20 pt-4">
-            <p className="text-sm font-medium text-white">{userName}</p>
-            <RoleLabel role={role} />
+            <SidebarIdentity userName={userName} role={role} collapsed={false} />
             <form action={logoutAction} className="mt-3">
               <button type="submit" className="text-sm text-white underline decoration-white/40 underline-offset-4">
                 Logout

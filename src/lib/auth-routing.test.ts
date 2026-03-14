@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { getAuthRedirectDecision } from "~/lib/auth-routing";
+import { getAuthRedirectDecision, shouldBypassAuthRouting } from "~/lib/auth-routing";
 
 describe("getAuthRedirectDecision", () => {
   it("redirects unauthenticated protected routes to login with callback", () => {
@@ -37,5 +37,17 @@ describe("getAuthRedirectDecision", () => {
     });
 
     expect(decision).toEqual({ type: "none" });
+  });
+});
+
+describe("shouldBypassAuthRouting", () => {
+  it("bypasses public asset paths", () => {
+    expect(shouldBypassAuthRouting("/logo.svg")).toBe(true);
+    expect(shouldBypassAuthRouting("/robots.txt")).toBe(true);
+  });
+
+  it("does not bypass authenticated app routes", () => {
+    expect(shouldBypassAuthRouting("/search")).toBe(false);
+    expect(shouldBypassAuthRouting("/admin/settings")).toBe(false);
   });
 });

@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 
 import { auth } from "~/lib/auth";
-import { getAuthRedirectDecision } from "~/lib/auth-routing";
+import { getAuthRedirectDecision, shouldBypassAuthRouting } from "~/lib/auth-routing";
 
 export default auth((request) => {
   const pathname = request.nextUrl.pathname;
+
+  if (shouldBypassAuthRouting(pathname)) {
+    return NextResponse.next();
+  }
+
   const decision = getAuthRedirectDecision({
     pathname,
     search: request.nextUrl.search,
@@ -26,5 +31,5 @@ export default auth((request) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*$).*)"],
 };

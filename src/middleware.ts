@@ -1,19 +1,33 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "~/lib/auth";
 import { getAuthRedirectDecision, shouldBypassAuthRouting } from "~/lib/auth-routing";
 
-export default auth((request) => {
+const SESSION_COOKIE_NAMES = ["authjs.session-token", "__Secure-authjs.session-token"];
+
+function hasAuthSessionCookie(cookieNames: string[]) {
+  return cookieNames.some((cookieName) =>
+    SESSION_COOKIE_NAMES.some(
+      (sessionCookieName) =>
+        cookieName === sessionCookieName || cookieName.startsWith(`${sessionCookieName}.`),
+    ),
+  );
+}
+
+export default function middleware(request: import("next/server").NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (shouldBypassAuthRouting(pathname)) {
     return NextResponse.next();
   }
 
+  const isAuthenticated = hasAuthSessionCookie(
+    request.cookies.getAll().map((cookie) => cookie.name),
+  );
+
   const decision = getAuthRedirectDecision({
     pathname,
     search: request.nextUrl.search,
-    isAuthenticated: !!request.auth,
+    isAuthenticated,
     isAuthApiRoute: pathname.startsWith("/api/auth"),
   });
 
@@ -28,7 +42,7 @@ export default auth((request) => {
   }
 
   return NextResponse.next();
-});
+}
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*$).*)"],

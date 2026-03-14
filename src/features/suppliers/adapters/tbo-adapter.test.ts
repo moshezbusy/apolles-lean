@@ -137,13 +137,17 @@ describe("tboAdapter.search", () => {
     const requestBody = JSON.parse((requestInit.body as string) ?? "{}");
 
     expect(requestBody).toEqual({
-      destination: "Rome",
-      checkIn: "2026-08-01",
-      checkOut: "2026-08-05",
-      rooms: 1,
-      adults: 2,
-      children: 1,
-      childrenAges: [7],
+      CheckInDate: "2026-08-01",
+      CheckOutDate: "2026-08-05",
+      CityName: "Rome",
+      NoOfRooms: 1,
+      RoomGuests: [
+        {
+          Adults: 2,
+          Children: 1,
+          ChildAge: [7],
+        },
+      ],
     });
 
     expect(withSupplierApiLogging).toHaveBeenCalledWith(
@@ -157,13 +161,17 @@ describe("tboAdapter.search", () => {
 
     const loggerParams = vi.mocked(withSupplierApiLogging).mock.calls[0]?.[0];
     expect(loggerParams?.requestBody).toEqual({
-      destination: "Rome",
-      checkIn: "2026-08-01",
-      checkOut: "2026-08-05",
-      rooms: 1,
-      adults: 2,
-      children: 1,
-      childrenAges: [7],
+      CheckInDate: "2026-08-01",
+      CheckOutDate: "2026-08-05",
+      CityName: "Rome",
+      NoOfRooms: 1,
+      RoomGuests: [
+        {
+          Adults: 2,
+          Children: 1,
+          ChildAge: [7],
+        },
+      ],
     });
   });
 
@@ -189,14 +197,55 @@ describe("tboAdapter.search", () => {
     const requestBody = JSON.parse((requestInit.body as string) ?? "{}");
 
     expect(requestBody).toEqual({
-      destination: "Rome",
-      checkIn: "2026-08-01",
-      checkOut: "2026-08-05",
-      rooms: 1,
-      adults: 2,
-      children: 0,
-      childrenAges: [],
+      CheckInDate: "2026-08-01",
+      CheckOutDate: "2026-08-05",
+      CityName: "Rome",
+      NoOfRooms: 1,
+      RoomGuests: [
+        {
+          Adults: 2,
+          Children: 0,
+          ChildAge: [],
+        },
+      ],
     });
+  });
+
+  it("maps room guest payload for each requested room", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          Status: { Code: 200, Description: "Success" },
+          Hotels: [],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await tboAdapter.search({
+      ...SEARCH_INPUT,
+      rooms: 2,
+      adults: 3,
+      childrenAges: [4, 9],
+    });
+
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const requestBody = JSON.parse((requestInit.body as string) ?? "{}");
+
+    expect(requestBody.RoomGuests).toEqual([
+      {
+        Adults: 3,
+        Children: 2,
+        ChildAge: [4, 9],
+      },
+      {
+        Adults: 3,
+        Children: 2,
+        ChildAge: [4, 9],
+      },
+    ]);
   });
 
   it("returns SUPPLIER_TIMEOUT on timeout/abort", async () => {
@@ -241,6 +290,27 @@ describe("tboAdapter.search", () => {
 
     await expect(tboAdapter.search(SEARCH_INPUT)).rejects.toMatchObject({
       code: ErrorCodes.SUPPLIER_ERROR,
+    });
+  });
+
+  it("returns RATE_UNAVAILABLE when TBO sends a business failure in a 200 response", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          Status: {
+            Code: 400,
+            Description: "No availability for selected dates",
+          },
+          Hotels: [],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(tboAdapter.search(SEARCH_INPUT)).rejects.toMatchObject({
+      code: ErrorCodes.RATE_UNAVAILABLE,
     });
   });
 
@@ -302,6 +372,36 @@ describe("tboAdapter.search", () => {
         },
       },
     ]);
+  });
+
+  it("returns SUPPLIER_ERROR when all returned hotels are malformed", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          Status: { Code: 200, Description: "Success" },
+          Hotels: [
+            {
+              HotelCode: "TB-INVALID-1",
+              HotelName: "Broken Hotel One",
+              Rooms: [],
+            },
+            {
+              HotelCode: "TB-INVALID-2",
+              HotelName: "Broken Hotel Two",
+              Rooms: [{ RoomName: "Room Only" }],
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(tboAdapter.search(SEARCH_INPUT)).rejects.toMatchObject({
+      code: ErrorCodes.SUPPLIER_ERROR,
+      message: "Malformed TBO response payload",
+    });
   });
 
   it("returns an empty array when supplier returns no hotels", async () => {

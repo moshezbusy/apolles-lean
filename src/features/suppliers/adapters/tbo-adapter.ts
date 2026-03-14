@@ -82,13 +82,15 @@ async function getTboCredentials(): Promise<{ apiKey: string; apiSecret: string 
 
 function buildSearchRequestBody(input: SupplierSearchInput) {
   return {
-    destination: input.destination,
-    checkIn: input.checkIn,
-    checkOut: input.checkOut,
-    rooms: input.rooms,
-    adults: input.adults,
-    children: input.childrenAges.length,
-    childrenAges: input.childrenAges,
+    CheckInDate: input.checkIn,
+    CheckOutDate: input.checkOut,
+    CityName: input.destination,
+    NoOfRooms: input.rooms,
+    RoomGuests: Array.from({ length: input.rooms }, () => ({
+      Adults: input.adults,
+      Children: input.childrenAges.length,
+      ChildAge: input.childrenAges,
+    })),
   };
 }
 
@@ -139,6 +141,20 @@ function translateHttpFailure(status: number, payload: unknown): AppError {
   return new AppError(ErrorCodes.SUPPLIER_ERROR, extractErrorMessage(payload));
 }
 
+function translateTboBusinessFailure(payload: TboSearchResponse): AppError | null {
+  const statusCode = payload.Status?.Code;
+
+  if (typeof statusCode !== "number" || statusCode === 200) {
+    return null;
+  }
+
+  if (isRateUnavailableError(payload)) {
+    return new AppError(ErrorCodes.RATE_UNAVAILABLE, "Requested rate is unavailable");
+  }
+
+  return new AppError(ErrorCodes.SUPPLIER_ERROR, extractErrorMessage(payload));
+}
+
 function pickLowestRate(hotel: TboHotel): TboRoom | null {
   if (!Array.isArray(hotel.Rooms) || hotel.Rooms.length === 0) {
     return null;
@@ -167,6 +183,11 @@ function deriveIsCancellable(isRefundable: boolean): boolean {
 
 function normalizeSearchResponse(payload: unknown): SupplierSearchResult[] {
   const response = payload as TboSearchResponse;
+  const businessFailure = translateTboBusinessFailure(response);
+
+  if (businessFailure) {
+    throw businessFailure;
+  }
 
   if (!Array.isArray(response?.Hotels)) {
     throw new AppError(ErrorCodes.SUPPLIER_ERROR, "Malformed TBO response payload");
@@ -227,6 +248,13 @@ function normalizeSearchResponse(payload: unknown): SupplierSearchResult[] {
     if (parsed.success) {
       normalized.push(parsed.data);
     }
+  }
+
+  if (response.Hotels.length > 0 && normalized.length === 0) {
+    throw new AppError(
+      ErrorCodes.SUPPLIER_ERROR,
+      "Malformed TBO response payload",
+    );
   }
 
   return normalized;

@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useState, useTransition } from "react";
+import { type FormEvent, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast, Toaster } from "sonner";
 
@@ -9,6 +9,15 @@ import {
   setAgentStatusAction,
   type AgentListItem,
 } from "~/features/admin/agents/actions";
+import {
+  getFieldDescribedBy,
+  getFieldErrorId,
+  getFieldHintId,
+  getFirstInvalidField,
+  type CreateAgentField,
+  type CreateAgentFormValues,
+  type FieldErrors,
+} from "~/features/admin/agents/agent-management-form";
 import { createAgentInputSchema } from "~/features/admin/agents/schemas";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
@@ -26,14 +35,6 @@ import { Input } from "~/components/ui/input";
 type Props = {
   agents: AgentListItem[];
 };
-
-type CreateAgentFormValues = {
-  name: string;
-  email: string;
-  password: string;
-};
-
-type FieldErrors = Partial<Record<keyof CreateAgentFormValues, string>>;
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
@@ -55,6 +56,23 @@ export function AgentManagementPanel({ agents }: Props) {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [pendingAgentId, setPendingAgentId] = useState<string | null>(null);
+  const fieldRefs = useRef<Record<CreateAgentField, HTMLInputElement | null>>({
+    name: null,
+    email: null,
+    password: null,
+  });
+
+  function focusFirstInvalidField(errors: FieldErrors) {
+    const firstInvalidField = getFirstInvalidField(errors);
+
+    if (!firstInvalidField) {
+      return;
+    }
+
+    const field = fieldRefs.current[firstInvalidField];
+    field?.focus();
+    field?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 
   function setFieldValue(field: keyof CreateAgentFormValues, value: string) {
     setFormValues((previous) => ({ ...previous, [field]: value }));
@@ -93,6 +111,7 @@ export function AgentManagementPanel({ agents }: Props) {
         }
       }
       setFieldErrors(nextErrors);
+      focusFirstInvalidField(nextErrors);
       return;
     }
 
@@ -173,13 +192,21 @@ export function AgentManagementPanel({ agents }: Props) {
                   </label>
                   <Input
                     id="agent-name"
+                    ref={(element) => {
+                      fieldRefs.current.name = element;
+                    }}
                     value={formValues.name}
                     onChange={(event) => setFieldValue("name", event.currentTarget.value)}
                     onBlur={() => validateField("name", formValues)}
+                    aria-describedby={getFieldDescribedBy("name", Boolean(fieldErrors.name))}
                     aria-invalid={fieldErrors.name ? true : undefined}
                     required
                   />
-                  {fieldErrors.name ? <p className="text-xs text-error">{fieldErrors.name}</p> : null}
+                  {fieldErrors.name ? (
+                    <p id={getFieldErrorId("name")} className="text-xs text-error">
+                      {fieldErrors.name}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="space-y-1">
@@ -189,13 +216,21 @@ export function AgentManagementPanel({ agents }: Props) {
                   <Input
                     id="agent-email"
                     type="email"
+                    ref={(element) => {
+                      fieldRefs.current.email = element;
+                    }}
                     value={formValues.email}
                     onChange={(event) => setFieldValue("email", event.currentTarget.value)}
                     onBlur={() => validateField("email", formValues)}
+                    aria-describedby={getFieldDescribedBy("email", Boolean(fieldErrors.email))}
                     aria-invalid={fieldErrors.email ? true : undefined}
                     required
                   />
-                  {fieldErrors.email ? <p className="text-xs text-error">{fieldErrors.email}</p> : null}
+                  {fieldErrors.email ? (
+                    <p id={getFieldErrorId("email")} className="text-xs text-error">
+                      {fieldErrors.email}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="space-y-1">
@@ -205,18 +240,23 @@ export function AgentManagementPanel({ agents }: Props) {
                   <Input
                     id="agent-password"
                     type="password"
+                    ref={(element) => {
+                      fieldRefs.current.password = element;
+                    }}
                     value={formValues.password}
                     onChange={(event) => setFieldValue("password", event.currentTarget.value)}
                     onBlur={() => validateField("password", formValues)}
-                    aria-describedby="agent-password-hint"
+                    aria-describedby={getFieldDescribedBy("password", Boolean(fieldErrors.password))}
                     aria-invalid={fieldErrors.password ? true : undefined}
                     required
                   />
-                  <p id="agent-password-hint" className="text-xs text-text-secondary">
+                  <p id={getFieldHintId("password")} className="text-xs text-text-secondary">
                     Minimum 12 chars, including uppercase, lowercase, number, and special character.
                   </p>
                   {fieldErrors.password ? (
-                    <p className="text-xs text-error">{fieldErrors.password}</p>
+                    <p id={getFieldErrorId("password")} className="text-xs text-error">
+                      {fieldErrors.password}
+                    </p>
                   ) : null}
                 </div>
 

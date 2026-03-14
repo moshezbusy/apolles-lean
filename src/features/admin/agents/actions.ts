@@ -1,7 +1,7 @@
 "use server";
 
 import bcrypt from "bcryptjs";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { auth } from "~/lib/auth";
@@ -87,35 +87,46 @@ export async function createAgentAction(formData: FormData): Promise<ActionResul
     role: "admin",
     validate: (input) => createAgentInputSchema.parse(input),
     execute: async ({ input }) => {
-      const existingUser = await db.user.findUnique({
-        where: { email: input.email },
-        select: { id: true },
-      });
+      try {
+        const existingUser = await db.user.findUnique({
+          where: { email: input.email },
+          select: { id: true },
+        });
 
-      if (existingUser) {
-        throw new AppError(ErrorCodes.VALIDATION_ERROR, "An agent with this email already exists", 409);
+        if (existingUser) {
+          throw new AppError(ErrorCodes.VALIDATION_ERROR, "An agent with this email already exists", 409);
+        }
+
+        const passwordHash = await bcrypt.hash(input.password, 10);
+        const user = await db.user.create({
+          data: {
+            name: input.name,
+            email: input.email,
+            passwordHash,
+            role: Role.AGENT,
+            isActive: true,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        revalidatePath("/admin/settings");
+
+        return {
+          agentId: user.id,
+          message: "Agent created",
+        };
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          throw new AppError(ErrorCodes.VALIDATION_ERROR, "An agent with this email already exists", 409);
+        }
+
+        throw error;
       }
-
-      const passwordHash = await bcrypt.hash(input.password, 10);
-      const user = await db.user.create({
-        data: {
-          name: input.name,
-          email: input.email,
-          passwordHash,
-          role: Role.AGENT,
-          isActive: true,
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      revalidatePath("/admin/settings");
-
-      return {
-        agentId: user.id,
-        message: "Agent created",
-      };
     },
   });
 }
@@ -153,9 +164,17 @@ export async function setAgentStatusAction(
         throw new AppError(ErrorCodes.NOT_AUTHORIZED, "Only agent accounts can be changed", 403);
       }
 
-      await db.user.update({
-        where: { id: input.userId },
-        data: { isActive: input.isActive },
+      await db.$transaction(async (tx) => {
+        await tx.user.update({
+          where: { id: input.userId },
+          data: { isActive: input.isActive },
+        });
+
+        if (!input.isActive) {
+          await tx.session.deleteMany({
+            where: { userId: input.userId },
+          });
+        }
       });
 
       revalidatePath("/admin/settings");

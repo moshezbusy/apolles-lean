@@ -1,5 +1,5 @@
 import bcrypt from "bcryptjs";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -16,10 +16,14 @@ vi.mock("~/lib/auth", () => ({
 }));
 
 vi.mock("~/lib/db", () => ({
-  db: {
-    user: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
+    db: {
+      $transaction: vi.fn(),
+      session: {
+        deleteMany: vi.fn(),
+      },
+      user: {
+        findMany: vi.fn(),
+        findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
@@ -51,6 +55,13 @@ function createAgentSession() {
 describe("admin agent actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(db.$transaction).mockImplementation(async (callback) => {
+      if (typeof callback === "function") {
+        return callback(db as never);
+      }
+
+      return callback as never;
+    });
   });
 
   it("returns NOT_AUTHORIZED when non-admin attempts create", async () => {
@@ -160,6 +171,30 @@ describe("admin agent actions", () => {
     expect(await bcrypt.compare("Password123!!", call?.data.passwordHash ?? "")).toBe(true);
   });
 
+  it("returns a typed duplicate-email error when create hits a unique constraint race", async () => {
+    vi.mocked(auth).mockResolvedValue(createAdminSession() as never);
+    vi.mocked(db.user.findUnique).mockResolvedValue(null as never);
+    vi.mocked(db.user.create).mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "6.6.0",
+      }),
+    );
+
+    const formData = new FormData();
+    formData.set("name", "Agent One");
+    formData.set("email", "agent1@example.com");
+    formData.set("password", "Password123!!");
+
+    const result = await createAgentAction(formData);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe(ErrorCodes.VALIDATION_ERROR);
+      expect(result.error.message).toContain("already exists");
+    }
+  });
+
   it("toggles agent status with typed success response", async () => {
     const admin = createAdminSession();
     const agentId = crypto.randomUUID();
@@ -186,6 +221,34 @@ describe("admin agent actions", () => {
       where: { id: agentId },
       data: { isActive: false },
     });
+    expect(db.session.deleteMany).toHaveBeenCalledWith({
+      where: { userId: agentId },
+    });
+  });
+
+  it("does not revoke sessions when re-activating an agent", async () => {
+    const admin = createAdminSession();
+    const agentId = crypto.randomUUID();
+
+    vi.mocked(auth).mockResolvedValue(admin as never);
+    vi.mocked(db.user.findUnique).mockResolvedValue({ id: agentId, role: Role.AGENT } as never);
+    vi.mocked(db.user.update).mockResolvedValue({ id: agentId } as never);
+
+    const formData = new FormData();
+    formData.set("userId", agentId);
+    formData.set("isActive", "true");
+
+    const result = await setAgentStatusAction(formData);
+
+    expect(result).toEqual({
+      success: true,
+      data: {
+        userId: agentId,
+        isActive: true,
+        message: "Agent activated",
+      },
+    });
+    expect(db.session.deleteMany).not.toHaveBeenCalled();
   });
 
   it("prevents admin from changing their own active status", async () => {

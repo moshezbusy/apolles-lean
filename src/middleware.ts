@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 
-import { getAuthRedirectDecision, shouldBypassAuthRouting } from "~/lib/auth-routing";
+import {
+  buildCallbackUrl,
+  getAuthRedirectDecision,
+  REQUEST_CALLBACK_URL_HEADER,
+  shouldBypassAuthRouting,
+} from "~/lib/auth-routing";
 
 const SESSION_COOKIE_NAMES = ["authjs.session-token", "__Secure-authjs.session-token"];
 
@@ -20,6 +25,8 @@ export default function middleware(request: import("next/server").NextRequest) {
     return NextResponse.next();
   }
 
+  const callbackUrl = buildCallbackUrl(pathname, request.nextUrl.search);
+
   const isAuthenticated = hasAuthSessionCookie(
     request.cookies.getAll().map((cookie) => cookie.name),
   );
@@ -37,11 +44,14 @@ export default function middleware(request: import("next/server").NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (decision.type === "search") {
-    return NextResponse.redirect(new URL("/search", request.nextUrl.origin));
-  }
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set(REQUEST_CALLBACK_URL_HEADER, callbackUrl);
 
-  return NextResponse.next();
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 }
 
 export const config = {

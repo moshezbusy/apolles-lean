@@ -4,6 +4,7 @@ import { AuthError } from "next-auth";
 import { z } from "zod";
 
 import { signIn, signOut } from "~/lib/auth";
+import { normalizeCallbackUrl } from "~/lib/auth-routing";
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -19,17 +20,7 @@ export type LoginState = {
 };
 
 function getRedirectTarget(formData: FormData) {
-  const callbackUrl = formData.get("callbackUrl");
-
-  if (
-    typeof callbackUrl === "string" &&
-    callbackUrl.startsWith("/") &&
-    !callbackUrl.startsWith("//")
-  ) {
-    return callbackUrl;
-  }
-
-  return DEFAULT_REDIRECT;
+  return normalizeCallbackUrl(formData.get("callbackUrl") as string | null);
 }
 
 export async function loginAction(

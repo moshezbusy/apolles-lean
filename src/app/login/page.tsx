@@ -1,4 +1,9 @@
+import React from "react";
+import { redirect } from "next/navigation";
+
 import { LoginForm } from "~/app/login/login-form";
+import { auth } from "~/lib/auth";
+import { DEFAULT_AUTHENTICATED_REDIRECT } from "~/lib/auth-routing";
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -7,6 +12,12 @@ type LoginPageProps = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const session = await auth();
+
+  if (session?.user) {
+    redirect(DEFAULT_AUTHENTICATED_REDIRECT);
+  }
+
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const callbackUrl = resolvedSearchParams?.callbackUrl;
 

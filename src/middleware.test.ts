@@ -25,6 +25,12 @@ describe("middleware", () => {
     expect(response.status).toBe(200);
   });
 
+  it("keeps login available even when a session cookie is present", () => {
+    const response = middleware(createRequest("https://example.com/login", "authjs.session-token=session-value"));
+
+    expect(response.status).toBe(200);
+  });
+
   it("allows public asset requests without auth", () => {
     const response = middleware(createRequest("https://example.com/logo.svg"));
 

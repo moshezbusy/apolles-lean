@@ -19,6 +19,26 @@ type LoggedExecutionResult<TData> = {
   responseStatus?: number;
 };
 
+type LoggedExecutionError = {
+  responseBody?: Prisma.SupplierApiLogCreateInput["responseBody"];
+  responseStatus?: number;
+};
+
+export class LoggedSupplierApiError extends Error {
+  public readonly cause: Error;
+  public readonly responseBody?: Prisma.SupplierApiLogCreateInput["responseBody"];
+  public readonly responseStatus?: number;
+
+  constructor(error: Error, metadata: LoggedExecutionError) {
+    super(error.message);
+    this.name = "LoggedSupplierApiError";
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.cause = error;
+    this.responseBody = metadata.responseBody;
+    this.responseStatus = metadata.responseStatus;
+  }
+}
+
 const SUPPLIER_TO_DB = {
   tbo: "TBO",
   expedia: "EXPEDIA",
@@ -29,11 +49,46 @@ function toDbSupplier(supplier: SupplierId): Prisma.SupplierApiLogCreateInput["s
 }
 
 function getErrorMessage(error: unknown): string {
+  if (error instanceof LoggedSupplierApiError) {
+    return error.cause.message;
+  }
+
   if (error instanceof Error) {
     return error.message;
   }
 
   return "Unknown supplier error";
+}
+
+function getLoggedExecutionError(error: unknown): LoggedExecutionError {
+  if (error instanceof LoggedSupplierApiError) {
+    return {
+      responseBody: error.responseBody,
+      responseStatus: error.responseStatus,
+    };
+  }
+
+  if (typeof error !== "object" || error === null) {
+    return {};
+  }
+
+  const candidate = error as LoggedExecutionError;
+
+  return {
+    responseBody: candidate.responseBody,
+    responseStatus: candidate.responseStatus,
+  };
+}
+
+export function createLoggedSupplierError(
+  error: Error,
+  metadata: LoggedExecutionError,
+): LoggedSupplierApiError {
+  return new LoggedSupplierApiError(error, metadata);
+}
+
+export function isLoggedSupplierError(error: unknown): error is LoggedSupplierApiError {
+  return error instanceof LoggedSupplierApiError;
 }
 
 export async function logSupplierApiCall(input: SupplierApiLogInput) {
@@ -85,14 +140,22 @@ export async function withSupplierApiLogging<TData>(params: {
 
     return result.data;
   } catch (error) {
+    const metadata = getLoggedExecutionError(error);
+
     await tryLogSupplierApiCall({
       supplier: params.supplier,
       method: params.method,
       endpoint: params.endpoint,
       requestBody: params.requestBody,
+      responseBody: metadata.responseBody,
+      responseStatus: metadata.responseStatus,
       durationMs: Date.now() - startedAtMs,
       errorMessage: getErrorMessage(error),
     });
+
+    if (error instanceof LoggedSupplierApiError) {
+      throw error.cause;
+    }
 
     throw error;
   }

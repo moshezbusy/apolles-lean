@@ -22,7 +22,7 @@ export const supplierSearchResultSchema = z.object({
   supplierHotelId: z.string().min(1),
   hotelName: z.string().min(1),
   starRating: z.number().min(0).max(5),
-  address: z.string().min(1).optional(),
+  address: z.string().min(1),
   images: z.array(z.string().url()).default([]),
   lowestRate: lowestRateSchema,
   supplierMetadata: z

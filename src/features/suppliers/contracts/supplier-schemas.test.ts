@@ -14,6 +14,7 @@ describe("supplier normalized schemas", () => {
       supplierHotelId: "hotel-123",
       hotelName: "Sample Hotel",
       starRating: 4,
+      address: "Rome, Italy",
       images: ["https://example.com/hotel.jpg"],
       lowestRate: {
         supplierAmount: 120.5,
@@ -38,6 +39,7 @@ describe("supplier normalized schemas", () => {
       supplierHotelId: "exp-123",
       hotelName: "Sample Expedia Hotel",
       starRating: 4,
+      address: "Barcelona, Spain",
       images: ["https://example.com/hotel.jpg"],
       lowestRate: {
         supplierAmount: 220,
@@ -69,6 +71,7 @@ describe("supplier normalized schemas", () => {
       supplierHotelId: "",
       hotelName: "Sample Hotel",
       starRating: 4,
+      address: "Paris, France",
       images: [],
       lowestRate: {
         supplierAmount: 120.5,
@@ -177,6 +180,29 @@ describe("supplier normalized schemas", () => {
       supplier: "hilton",
       supplierHotelId: "hotel-123",
       status: "confirmed",
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects search result without address", () => {
+    const result = supplierSearchResultSchema.safeParse({
+      supplier: "tbo",
+      supplierHotelId: "hotel-123",
+      hotelName: "Sample Hotel",
+      starRating: 4,
+      images: [],
+      lowestRate: {
+        supplierAmount: 120.5,
+        currency: "USD",
+        roomName: "Deluxe Room",
+        mealPlan: "Breakfast Included",
+        cancellationPolicy: {
+          isRefundable: true,
+          description: "Free cancellation until March 20",
+        },
+        isCancellable: true,
+      },
     });
 
     expect(result.success).toBe(false);

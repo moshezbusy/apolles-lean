@@ -61,6 +61,6 @@ export interface SupplierAdapter {
   book(input: SupplierBookInput): Promise<BookingResult>;
 
   // Forward-compatible methods (Late MVP)
-  cancel?(input: SupplierCancelInput): Promise<{ cancelled: boolean; message?: string }>;
-  getBookingDetail?(input: SupplierGetBookingDetailInput): Promise<BookingResult>;
+  cancel(input: SupplierCancelInput): Promise<{ cancelled: boolean; message?: string }>;
+  getBookingDetail(input: SupplierGetBookingDetailInput): Promise<BookingResult>;
 }

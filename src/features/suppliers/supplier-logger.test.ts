@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { db } from "~/lib/db";
-import { logSupplierApiCall, withSupplierApiLogging } from "~/features/suppliers/supplier-logger";
+import {
+  createLoggedSupplierError,
+  logSupplierApiCall,
+  withSupplierApiLogging,
+} from "~/features/suppliers/supplier-logger";
 
 vi.mock("~/lib/db", () => ({
   db: {
@@ -103,6 +107,38 @@ describe("supplier logger", () => {
         responseStatus: undefined,
         durationMs: 75,
         errorMessage: "Timeout while calling supplier",
+      },
+    });
+  });
+
+  it("logs failure response metadata when provided by adapter", async () => {
+    const originalError = new Error("Forbidden");
+    const supplierError = createLoggedSupplierError(originalError, {
+      responseBody: { message: "Forbidden" },
+      responseStatus: 403,
+    });
+
+    await expect(
+      withSupplierApiLogging({
+        supplier: "expedia",
+        method: "search",
+        endpoint: "/search",
+        execute: async () => {
+          throw supplierError;
+        },
+      }),
+    ).rejects.toBe(originalError);
+
+    expect(mockedDb.supplierApiLog.create).toHaveBeenCalledWith({
+      data: {
+        supplier: "EXPEDIA",
+        method: "search",
+        endpoint: "/search",
+        requestBody: undefined,
+        responseBody: { message: "Forbidden" },
+        responseStatus: 403,
+        durationMs: expect.any(Number),
+        errorMessage: "Forbidden",
       },
     });
   });

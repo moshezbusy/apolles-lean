@@ -1,13 +1,32 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { withSupplierApiLogging } from "~/features/suppliers/supplier-logger";
+import {
+  createLoggedSupplierError,
+  isLoggedSupplierError,
+  withSupplierApiLogging,
+} from "~/features/suppliers/supplier-logger";
 import { tboAdapter, TBO_SEARCH_ENDPOINT, TBO_TIMEOUT_MS } from "~/features/suppliers/adapters/tbo-adapter";
 import { AppError, ErrorCodes } from "~/lib/errors";
 
 vi.mock("~/features/suppliers/supplier-logger", () => ({
+  createLoggedSupplierError: vi.fn((error, metadata) => ({
+    ...metadata,
+    cause: error,
+    message: error.message,
+    name: "LoggedSupplierApiError",
+  })),
+  isLoggedSupplierError: vi.fn((error) => error?.name === "LoggedSupplierApiError"),
   withSupplierApiLogging: vi.fn(async ({ execute }) => {
-    const execution = await execute();
-    return execution.data;
+    try {
+      const execution = await execute();
+      return execution.data;
+    } catch (error) {
+      if (isLoggedSupplierError(error)) {
+        throw error.cause;
+      }
+
+      throw error;
+    }
   }),
 }));
 
@@ -338,7 +357,7 @@ describe("tboAdapter.search", () => {
 });
 
 describe("tboAdapter non-search methods", () => {
-  it("throws not-implemented AppError for getRoomDetails/recheckPrice/book", () => {
+  it("throws not-implemented AppError for getRoomDetails/recheckPrice/book/cancel/getBookingDetail", () => {
     expect(() =>
       tboAdapter.getRoomDetails({
         supplierHotelId: "TB-001",
@@ -364,6 +383,18 @@ describe("tboAdapter non-search methods", () => {
         rateId: "rate-1",
         idempotencyKey: "idem-1",
         guests: [{ fullName: "Test Guest" }],
+      }),
+    ).toThrow(AppError);
+
+    expect(() =>
+      tboAdapter.cancel({
+        supplierBookingReference: "TB-BOOKING-1",
+      }),
+    ).toThrow(AppError);
+
+    expect(() =>
+      tboAdapter.getBookingDetail({
+        supplierBookingReference: "TB-BOOKING-1",
       }),
     ).toThrow(AppError);
   });

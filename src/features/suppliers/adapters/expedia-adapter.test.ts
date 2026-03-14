@@ -2,13 +2,32 @@ import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { expediaAdapter, EXPEDIA_SEARCH_ENDPOINT, EXPEDIA_TIMEOUT_MS } from "~/features/suppliers/adapters/expedia-adapter";
-import { withSupplierApiLogging } from "~/features/suppliers/supplier-logger";
+import {
+  createLoggedSupplierError,
+  isLoggedSupplierError,
+  withSupplierApiLogging,
+} from "~/features/suppliers/supplier-logger";
 import { AppError, ErrorCodes } from "~/lib/errors";
 
 vi.mock("~/features/suppliers/supplier-logger", () => ({
+  createLoggedSupplierError: vi.fn((error, metadata) => ({
+    ...metadata,
+    cause: error,
+    message: error.message,
+    name: "LoggedSupplierApiError",
+  })),
+  isLoggedSupplierError: vi.fn((error) => error?.name === "LoggedSupplierApiError"),
   withSupplierApiLogging: vi.fn(async ({ execute }) => {
-    const execution = await execute();
-    return execution.data;
+    try {
+      const execution = await execute();
+      return execution.data;
+    } catch (error) {
+      if (isLoggedSupplierError(error)) {
+        throw error.cause;
+      }
+
+      throw error;
+    }
   }),
 }));
 
@@ -251,10 +270,11 @@ describe("expediaAdapter.search", () => {
         JSON.stringify({
           data: [
             {
-              property_id: "EXP-2001",
-              name: "Valid Hotel",
-              star_rating: 5,
-              rates: [
+                property_id: "EXP-2001",
+                name: "Valid Hotel",
+                star_rating: 5,
+                address: { line1: "Valid Address" },
+                rates: [
                 {
                   room_name: "Suite",
                   board_type: "Breakfast",
@@ -361,7 +381,7 @@ describe("expediaAdapter.search", () => {
 });
 
 describe("expediaAdapter non-search methods", () => {
-  it("throws not-implemented AppError for getRoomDetails/recheckPrice/book", () => {
+  it("throws not-implemented AppError for getRoomDetails/recheckPrice/book/cancel/getBookingDetail", () => {
     expect(() =>
       expediaAdapter.getRoomDetails({
         supplierHotelId: "EXP-1001",
@@ -387,6 +407,18 @@ describe("expediaAdapter non-search methods", () => {
         rateId: "rate-1",
         idempotencyKey: "idem-1",
         guests: [{ fullName: "Test Guest" }],
+      }),
+    ).toThrow(AppError);
+
+    expect(() =>
+      expediaAdapter.cancel({
+        supplierBookingReference: "EXP-BOOKING-1",
+      }),
+    ).toThrow(AppError);
+
+    expect(() =>
+      expediaAdapter.getBookingDetail({
+        supplierBookingReference: "EXP-BOOKING-1",
       }),
     ).toThrow(AppError);
   });

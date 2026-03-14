@@ -10,8 +10,12 @@ import {
   supplierSearchResultSchema,
   type SupplierSearchResult,
 } from "~/features/suppliers/contracts/supplier-schemas";
-import { withSupplierApiLogging } from "~/features/suppliers/supplier-logger";
-import { AppError, ErrorCodes } from "~/lib/errors";
+import {
+  createLoggedSupplierError,
+  isLoggedSupplierError,
+  withSupplierApiLogging,
+} from "~/features/suppliers/supplier-logger";
+import { AppError, ErrorCodes, isAppError } from "~/lib/errors";
 
 type TboSearchResponse = {
   Status?: {
@@ -249,7 +253,10 @@ async function fetchTboSearch(
     const payload = (await response.json()) as unknown;
 
     if (!response.ok) {
-      throw translateHttpFailure(response.status, payload);
+      throw createLoggedSupplierError(translateHttpFailure(response.status, payload), {
+        responseBody: payload as Prisma.SupplierApiLogCreateInput["responseBody"],
+        responseStatus: response.status,
+      });
     }
 
     return {
@@ -264,7 +271,11 @@ async function fetchTboSearch(
       );
     }
 
-    if (error instanceof AppError) {
+    if (isLoggedSupplierError(error)) {
+      throw error;
+    }
+
+    if (isAppError(error)) {
       throw error;
     }
 
@@ -314,5 +325,11 @@ export const tboAdapter: SupplierAdapter = {
   },
   book(_input: SupplierBookInput) {
     unsupportedMethod("book");
+  },
+  cancel() {
+    unsupportedMethod("cancel");
+  },
+  getBookingDetail() {
+    unsupportedMethod("getBookingDetail");
   },
 };

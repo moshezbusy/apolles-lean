@@ -30,7 +30,8 @@ describe("Prisma auth schema compatibility", () => {
     expect(schema).toContain("model SupplierApiLog {");
     expect(prismaConfig).toContain('process.env.DIRECT_URL?.trim()');
     expect(prismaConfig).toContain('process.env.DATABASE_URL?.trim()');
-    expect(prismaConfig).toContain('url: directUrl || databaseUrl');
+    expect(prismaConfig).toContain('process.env.DATABASE_URL = directUrl');
+    expect(prismaConfig).toContain('url: prismaDatasourceUrl');
 
     expect(initMigration).toContain("CREATE TYPE \"UserRole\" AS ENUM ('agent', 'platform_admin');");
     expect(initMigration).toContain('"role" "UserRole" NOT NULL DEFAULT \'agent\'');

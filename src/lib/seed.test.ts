@@ -42,16 +42,34 @@ describe("seed helpers", () => {
     );
   });
 
-  it("uses fallback seed password outside production", () => {
+  it("prefers DIRECT_URL over DATABASE_URL by default", () => {
+    const previousDirect = process.env.DIRECT_URL;
+    const previousDatabase = process.env.DATABASE_URL;
+
+    process.env.DIRECT_URL = "postgresql://direct-host.example:5432/app?sslmode=require";
+    process.env.DATABASE_URL = "postgresql://pooler.example:6543/app";
+
+    expect(getSeedDatabaseUrl()).toBe("postgresql://direct-host.example:5432/app?sslmode=require");
+
+    process.env.DIRECT_URL = previousDirect;
+    process.env.DATABASE_URL = previousDatabase;
+  });
+
+  it("uses fallback seed password only when explicitly allowed", () => {
     expect(
-      getSeedPassword("SEED_ADMIN_PASSWORD", "AdminSeed123!", { NODE_ENV: "test" }),
+      getSeedPassword("SEED_ADMIN_PASSWORD", "AdminSeed123!", {
+        NODE_ENV: "test",
+        ALLOW_INSECURE_SEED_DEFAULTS: "1",
+      }),
     ).toBe("AdminSeed123!");
   });
 
-  it("requires explicit seed passwords in production", () => {
+  it("requires explicit seed passwords when insecure defaults are not enabled", () => {
     expect(() =>
-      getSeedPassword("SEED_AGENT_PASSWORD", "AgentSeed123!", { NODE_ENV: "production" }),
-    ).toThrow("SEED_AGENT_PASSWORD must be set in production");
+      getSeedPassword("SEED_AGENT_PASSWORD", "AgentSeed123!", { NODE_ENV: "test" }),
+    ).toThrow(
+      "SEED_AGENT_PASSWORD must be set unless ALLOW_INSECURE_SEED_DEFAULTS=1 in non-production environments",
+    );
   });
 
   it("detects Prisma missing table errors", () => {
@@ -112,9 +130,14 @@ describe("upsertUser", () => {
     expect(bcryptClient.hash).not.toHaveBeenCalled();
     expect(prisma.user.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        update: expect.objectContaining({ passwordHash: "stored-hash" }),
+        update: expect.objectContaining({ name: "Agent Demo", passwordHash: "stored-hash" }),
       }),
     );
+    const firstUpsertCall = prisma.user.upsert.mock.calls.at(0);
+    expect(firstUpsertCall).toBeDefined();
+    const updatePayload = firstUpsertCall?.[0].update;
+    expect(updatePayload).not.toHaveProperty("role");
+    expect(updatePayload).not.toHaveProperty("isActive");
   });
 });
 

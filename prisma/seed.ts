@@ -36,7 +36,9 @@ export function isMissingTableError(error: unknown, tableName: string) {
   );
 }
 
-export function getSeedDatabaseUrl(baseUrl = process.env.DATABASE_URL) {
+export function getSeedDatabaseUrl(
+  baseUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL,
+) {
   if (!baseUrl) {
     return undefined;
   }
@@ -81,8 +83,13 @@ export function getSeedPassword(
     return value;
   }
 
-  if (env.NODE_ENV === "production") {
-    throw new Error(`${envKey} must be set in production`);
+  const canUseInsecureDefault =
+    env.NODE_ENV !== "production" && env.ALLOW_INSECURE_SEED_DEFAULTS === "1";
+
+  if (!canUseInsecureDefault) {
+    throw new Error(
+      `${envKey} must be set unless ALLOW_INSECURE_SEED_DEFAULTS=1 in non-production environments`,
+    );
   }
 
   return fallback;
@@ -119,8 +126,6 @@ export async function upsertUser(
     where: { email: params.email },
     update: {
       name: params.name,
-      role: params.role,
-      isActive: true,
       passwordHash,
     },
     create: {

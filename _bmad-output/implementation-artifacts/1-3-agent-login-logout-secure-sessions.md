@@ -1,6 +1,6 @@
 # Story 1.3: Agent Login, Logout & Secure Sessions
 
-Status: done
+Status: review
 
 ## Story
 
@@ -132,6 +132,7 @@ openai/gpt-5.3-codex
 - ✅ Resolved review finding [Medium]: login shell now follows the flat Apolles visual system with no gradients.
 - ✅ Resolved review finding [Medium]: login CTA and focus treatment now use the Apolles primary `#635BFF` instead of accent cyan.
 - Validation passed: `pnpm test` (195/195), `pnpm build`, `pnpm typecheck`.
+- 2026-03-16: Re-executed the BMAD dev-story workflow for Story 1.3, re-validated the targeted auth coverage and full regression suite, and confirmed the story is ready for review.
 
 ### File List
 
@@ -272,3 +273,4 @@ All 9 Acceptance Criteria re-verified as IMPLEMENTED after fixes. Quality gates 
 - 2026-03-14: Fifth review pass — preserved callback context across expired-session redirects, removed stale-cookie login bounce behavior, added redirect-focused auth tests, and clarified that the review ran against already-committed story changes.
 - 2026-03-15: Sixth review pass — reconciled story-vs-git tracking, updated the login page to the Apolles dark treatment, made session handling fail closed on malformed roles, switched middleware gating to validated Auth.js session state, added direct auth config coverage, and set status back to review.
 - 2026-03-15: Seventh review pass — added direct expired-session and DB-session logout evidence, removed gradients from the login shell, restored primary-brand login styling, and set status back to done.
+- 2026-03-16: Re-ran the BMAD dev-story completion workflow, re-validated Story 1.3 with targeted auth tests plus the full regression suite, and moved the story back to review.

@@ -105,6 +105,8 @@ export const fullAuthConfig = {
         logger.warn("Session callback: role missing on user payload", {
           userId: user.id,
         });
+
+        throw new Error("Session callback: role missing on user payload");
       }
 
       return {
@@ -112,7 +114,7 @@ export const fullAuthConfig = {
         user: {
           ...session.user,
           id: user.id,
-          role: userWithRole.role ?? Role.AGENT,
+          role: userWithRole.role,
         },
       };
     },

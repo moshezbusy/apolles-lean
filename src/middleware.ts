@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { auth } from "~/lib/auth";
 import {
   buildCallbackUrl,
   getAuthRedirectDecision,
@@ -7,18 +8,7 @@ import {
   shouldBypassAuthRouting,
 } from "~/lib/auth-routing";
 
-const SESSION_COOKIE_NAMES = ["authjs.session-token", "__Secure-authjs.session-token"];
-
-function hasAuthSessionCookie(cookieNames: string[]) {
-  return cookieNames.some((cookieName) =>
-    SESSION_COOKIE_NAMES.some(
-      (sessionCookieName) =>
-        cookieName === sessionCookieName || cookieName.startsWith(`${sessionCookieName}.`),
-    ),
-  );
-}
-
-export default function middleware(request: import("next/server").NextRequest) {
+export default auth(function middleware(request) {
   const pathname = request.nextUrl.pathname;
 
   if (shouldBypassAuthRouting(pathname)) {
@@ -27,14 +17,10 @@ export default function middleware(request: import("next/server").NextRequest) {
 
   const callbackUrl = buildCallbackUrl(pathname, request.nextUrl.search);
 
-  const isAuthenticated = hasAuthSessionCookie(
-    request.cookies.getAll().map((cookie) => cookie.name),
-  );
-
   const decision = getAuthRedirectDecision({
     pathname,
     search: request.nextUrl.search,
-    isAuthenticated,
+    isAuthenticated: Boolean(request.auth?.user),
     isAuthApiRoute: pathname.startsWith("/api/auth"),
   });
 
@@ -52,7 +38,7 @@ export default function middleware(request: import("next/server").NextRequest) {
       headers: requestHeaders,
     },
   });
-}
+});
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\..*$).*)"],

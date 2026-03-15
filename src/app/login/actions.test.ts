@@ -1,5 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { cookiesMock, deleteManyMock, signInMock, signOutMock } = vi.hoisted(() => ({
+  cookiesMock: vi.fn(),
+  deleteManyMock: vi.fn(),
+  signInMock: vi.fn(),
+  signOutMock: vi.fn(),
+}));
+
 vi.mock("next-auth", () => ({
   AuthError: class AuthError extends Error {
     type: string;
@@ -12,9 +19,21 @@ vi.mock("next-auth", () => ({
   },
 }));
 
+vi.mock("next/headers", () => ({
+  cookies: cookiesMock,
+}));
+
 vi.mock("~/lib/auth", () => ({
-  signIn: vi.fn(),
-  signOut: vi.fn(),
+  signIn: signInMock,
+  signOut: signOutMock,
+}));
+
+vi.mock("~/lib/db", () => ({
+  db: {
+    session: {
+      deleteMany: deleteManyMock,
+    },
+  },
 }));
 
 import { loginAction, logoutAction } from "~/app/login/actions";
@@ -40,6 +59,9 @@ function createFormData(overrides?: {
 describe("loginAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    cookiesMock.mockResolvedValue({
+      get: vi.fn(() => undefined),
+    });
   });
 
   it("passes through a safe callbackUrl on successful login", async () => {
@@ -92,10 +114,55 @@ describe("loginAction", () => {
   });
 
   it("delegates logout to NextAuth signOut with login redirect", async () => {
+    deleteManyMock.mockResolvedValue({ count: 1 });
+    cookiesMock.mockResolvedValue({
+      get: vi.fn((name: string) =>
+        name === "authjs.session-token" ? { name, value: "session-token" } : undefined,
+      ),
+    });
     vi.mocked(signOut).mockResolvedValue(undefined);
 
     await logoutAction();
 
+    expect(deleteManyMock).toHaveBeenCalledWith({
+      where: {
+        sessionToken: {
+          in: ["session-token"],
+        },
+      },
+    });
+    expect(signOut).toHaveBeenCalledWith({ redirectTo: "/login" });
+  });
+
+  it("deletes a secure production session token before redirecting to login", async () => {
+    deleteManyMock.mockResolvedValue({ count: 1 });
+    cookiesMock.mockResolvedValue({
+      get: vi.fn((name: string) =>
+        name === "__Secure-authjs.session-token"
+          ? { name, value: "secure-session-token" }
+          : undefined,
+      ),
+    });
+    vi.mocked(signOut).mockResolvedValue(undefined);
+
+    await logoutAction();
+
+    expect(deleteManyMock).toHaveBeenCalledWith({
+      where: {
+        sessionToken: {
+          in: ["secure-session-token"],
+        },
+      },
+    });
+    expect(signOut).toHaveBeenCalledWith({ redirectTo: "/login" });
+  });
+
+  it("still redirects to login when no database session cookie is present", async () => {
+    vi.mocked(signOut).mockResolvedValue(undefined);
+
+    await logoutAction();
+
+    expect(deleteManyMock).not.toHaveBeenCalled();
     expect(signOut).toHaveBeenCalledWith({ redirectTo: "/login" });
   });
 });

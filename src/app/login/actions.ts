@@ -1,8 +1,10 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { AuthError } from "next-auth";
 import { z } from "zod";
 
+import { db } from "~/lib/db";
 import { signIn, signOut } from "~/lib/auth";
 import { normalizeCallbackUrl } from "~/lib/auth-routing";
 
@@ -14,6 +16,7 @@ const loginSchema = z.object({
 const INVALID_CREDENTIALS_MESSAGE = "Invalid email or password";
 const INACTIVE_ACCOUNT_MESSAGE = "Account is inactive";
 const DEFAULT_REDIRECT = "/search";
+const SESSION_COOKIE_NAMES = ["authjs.session-token", "__Secure-authjs.session-token"];
 
 export type LoginState = {
   error: string | null;
@@ -21,6 +24,29 @@ export type LoginState = {
 
 function getRedirectTarget(formData: FormData) {
   return normalizeCallbackUrl(formData.get("callbackUrl") as string | null);
+}
+
+async function deleteCurrentDatabaseSession() {
+  const cookieStore = await cookies();
+  const sessionTokens = Array.from(
+    new Set(
+      SESSION_COOKIE_NAMES.map((name) => cookieStore.get(name)?.value).filter(
+        (value): value is string => Boolean(value),
+      ),
+    ),
+  );
+
+  if (sessionTokens.length === 0) {
+    return;
+  }
+
+  await db.session.deleteMany({
+    where: {
+      sessionToken: {
+        in: sessionTokens,
+      },
+    },
+  });
 }
 
 export async function loginAction(
@@ -60,5 +86,6 @@ export async function loginAction(
 }
 
 export async function logoutAction() {
+  await deleteCurrentDatabaseSession();
   await signOut({ redirectTo: "/login" });
 }

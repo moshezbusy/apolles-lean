@@ -24,15 +24,15 @@ describe("logger", () => {
     expect(typeof payload.timestamp).toBe("string");
   });
 
-  it("writes errors to stderr", () => {
-    const errorSpy = vi
-      .spyOn(console, "error")
+  it("writes errors to stdout", () => {
+    const logSpy = vi
+      .spyOn(console, "log")
       .mockImplementation(() => undefined);
 
     logger.error("boom");
 
-    expect(errorSpy).toHaveBeenCalledTimes(1);
-    const payload = JSON.parse(errorSpy.mock.calls[0]?.[0] as string) as Record<
+    expect(logSpy).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(logSpy.mock.calls[0]?.[0] as string) as Record<
       string,
       unknown
     >;
@@ -40,15 +40,15 @@ describe("logger", () => {
     expect(payload.message).toBe("boom");
   });
 
-  it("writes warnings to console.warn", () => {
-    const warnSpy = vi
-      .spyOn(console, "warn")
+  it("writes warnings to stdout", () => {
+    const logSpy = vi
+      .spyOn(console, "log")
       .mockImplementation(() => undefined);
 
     logger.warn("caution", { detail: "low disk" });
 
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    const payload = JSON.parse(warnSpy.mock.calls[0]?.[0] as string) as Record<
+    expect(logSpy).toHaveBeenCalledTimes(1);
+    const payload = JSON.parse(logSpy.mock.calls[0]?.[0] as string) as Record<
       string,
       unknown
     >;
@@ -84,8 +84,8 @@ describe("logger", () => {
   });
 
   it("serializes Error objects in context", () => {
-    const errorSpy = vi
-      .spyOn(console, "error")
+    const logSpy = vi
+      .spyOn(console, "log")
       .mockImplementation(() => undefined);
 
     logger.error("failed", {
@@ -93,7 +93,7 @@ describe("logger", () => {
       metadata: { retriable: false },
     });
 
-    const payload = JSON.parse(errorSpy.mock.calls[0]?.[0] as string) as Record<
+    const payload = JSON.parse(logSpy.mock.calls[0]?.[0] as string) as Record<
       string,
       unknown
     >;
@@ -106,6 +106,26 @@ describe("logger", () => {
       metadata: {
         retriable: false,
       },
+    });
+  });
+
+  it("handles circular context without throwing", () => {
+    const logSpy = vi
+      .spyOn(console, "log")
+      .mockImplementation(() => undefined);
+    const context: Record<string, unknown> = { source: "self-ref" };
+    context.self = context;
+
+    expect(() => logger.info("circular", context)).not.toThrow();
+
+    const payload = JSON.parse(logSpy.mock.calls[0]?.[0] as string) as Record<
+      string,
+      unknown
+    >;
+
+    expect(payload.context).toMatchObject({
+      source: "self-ref",
+      self: "[Circular]",
     });
   });
 });

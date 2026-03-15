@@ -7,7 +7,7 @@ interface LogEntry {
   context?: Record<string, unknown>;
 }
 
-function serializeValue(value: unknown): unknown {
+function serializeValue(value: unknown, seen = new WeakSet<object>()): unknown {
   if (value instanceof Error) {
     return {
       name: value.name,
@@ -17,14 +17,20 @@ function serializeValue(value: unknown): unknown {
   }
 
   if (Array.isArray(value)) {
-    return value.map((item) => serializeValue(item));
+    return value.map((item) => serializeValue(item, seen));
   }
 
   if (value && typeof value === "object") {
+    if (seen.has(value)) {
+      return "[Circular]";
+    }
+
+    seen.add(value);
+
     return Object.fromEntries(
       Object.entries(value).map(([key, entryValue]) => [
         key,
-        serializeValue(entryValue),
+        serializeValue(entryValue, seen),
       ]),
     );
   }
@@ -40,19 +46,7 @@ function log(level: LogLevel, message: string, context?: Record<string, unknown>
     ...(context ? { context: serializeValue(context) as Record<string, unknown> } : {}),
   };
 
-  const output = JSON.stringify(entry);
-
-  if (level === "error") {
-    console.error(output);
-    return;
-  }
-
-  if (level === "warn") {
-    console.warn(output);
-    return;
-  }
-
-  console.log(output);
+  console.log(JSON.stringify(entry));
 }
 
 export const logger = {

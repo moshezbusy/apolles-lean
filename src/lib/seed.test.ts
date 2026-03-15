@@ -5,6 +5,7 @@ import { Role } from "@prisma/client";
 import {
   getSeedDatabaseUrl,
   getSeedPassword,
+  isMissingTableError,
   runSeed,
   seedDatabase,
   upsertUser,
@@ -24,13 +25,21 @@ function createMockPrisma() {
 }
 
 describe("seed helpers", () => {
-  it("adds pooler params only once", () => {
-    expect(getSeedDatabaseUrl("postgresql://db.example/app")).toBe(
-      "postgresql://db.example/app?pgbouncer=true&connection_limit=1",
+  it("adds pooler params for Supabase-style pooled URLs", () => {
+    expect(getSeedDatabaseUrl("postgresql://db.example:6543/app")).toBe(
+      "postgresql://db.example:6543/app?pgbouncer=true&connection_limit=1",
     );
     expect(
       getSeedDatabaseUrl("postgresql://db.example/app?sslmode=require&pgbouncer=true"),
-    ).toBe("postgresql://db.example/app?sslmode=require&pgbouncer=true");
+    ).toBe(
+      "postgresql://db.example/app?sslmode=require&pgbouncer=true&connection_limit=1",
+    );
+  });
+
+  it("preserves direct URLs for non-pooled connections", () => {
+    expect(getSeedDatabaseUrl("postgresql://db.example:5432/app?sslmode=require")).toBe(
+      "postgresql://db.example:5432/app?sslmode=require",
+    );
   });
 
   it("uses fallback seed password outside production", () => {
@@ -43,6 +52,38 @@ describe("seed helpers", () => {
     expect(() =>
       getSeedPassword("SEED_AGENT_PASSWORD", "AgentSeed123!", { NODE_ENV: "production" }),
     ).toThrow("SEED_AGENT_PASSWORD must be set in production");
+  });
+
+  it("detects Prisma missing table errors", () => {
+    expect(
+      isMissingTableError(
+        {
+          code: "P2021",
+          message: "The table `public.platform_settings` does not exist in the current database.",
+        },
+        "platform_settings",
+      ),
+    ).toBe(true);
+
+    expect(
+      isMissingTableError(
+        {
+          code: "P2021",
+          meta: { table: "public.platform_settings" },
+        },
+        "platform_settings",
+      ),
+    ).toBe(true);
+
+    expect(
+      isMissingTableError(
+        {
+          code: "P2021",
+          message: "The table `public.users` does not exist in the current database.",
+        },
+        "platform_settings",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -100,6 +141,26 @@ describe("seedDatabase", () => {
         create: expect.objectContaining({ updatedBy: "admin-id", value: "12" }),
       }),
     );
+  });
+
+  it("still seeds users when platform_settings table is missing", async () => {
+    const prisma = createMockPrisma();
+    const bcryptClient = {
+      compare: vi.fn().mockResolvedValue(false),
+      hash: vi.fn().mockResolvedValue("new-hash"),
+    };
+
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.upsert
+      .mockResolvedValueOnce({ id: "admin-id" })
+      .mockResolvedValueOnce({ id: "agent-id" });
+    prisma.platformSetting.upsert.mockRejectedValue({
+      code: "P2021",
+      message: "The table `public.platform_settings` does not exist in the current database.",
+    });
+
+    await expect(seedDatabase(prisma as never, bcryptClient)).resolves.toBeUndefined();
+    expect(prisma.user.upsert).toHaveBeenCalledTimes(2);
   });
 });
 

@@ -12,17 +12,50 @@ type BcryptLike = Pick<typeof bcrypt, "compare" | "hash">;
 
 type SeedDbClient = Pick<PrismaClient, "$disconnect" | "platformSetting" | "user">;
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+export function isMissingTableError(error: unknown, tableName: string) {
+  if (!isRecord(error)) {
+    return false;
+  }
+
+  const code = error.code;
+  const meta = error.meta;
+  const message = error.message;
+
+  const normalizedTableName = tableName.toLowerCase();
+  const metaTableName =
+    isRecord(meta) && typeof meta.table === "string" ? meta.table.toLowerCase() : undefined;
+
+  return (
+    code === "P2021" &&
+    ((typeof metaTableName === "string" && metaTableName.includes(normalizedTableName)) ||
+      (typeof message === "string" && message.toLowerCase().includes(normalizedTableName)))
+  );
+}
+
 export function getSeedDatabaseUrl(baseUrl = process.env.DATABASE_URL) {
   if (!baseUrl) {
     return undefined;
   }
 
-  if (baseUrl.includes("pgbouncer=true")) {
-    return baseUrl;
+  const databaseUrl = new URL(baseUrl);
+
+  const usesPooler = databaseUrl.searchParams.get("pgbouncer") === "true" || databaseUrl.port === "6543";
+
+  if (!usesPooler) {
+    return databaseUrl.toString();
   }
 
-  const separator = baseUrl.includes("?") ? "&" : "?";
-  return `${baseUrl}${separator}pgbouncer=true&connection_limit=1`;
+  databaseUrl.searchParams.set("pgbouncer", "true");
+
+  if (!databaseUrl.searchParams.has("connection_limit")) {
+    databaseUrl.searchParams.set("connection_limit", "1");
+  }
+
+  return databaseUrl.toString();
 }
 
 export function createSeedPrismaClient(databaseUrl = getSeedDatabaseUrl()) {
@@ -124,18 +157,26 @@ export async function seedDatabase(prisma: SeedDbClient, bcryptClient: BcryptLik
     bcryptClient,
   );
 
-  await prisma.platformSetting.upsert({
-    where: { key: "markup_percentage" },
-    update: {
-      value: "12",
-      updatedBy: adminUser.id,
-    },
-    create: {
-      key: "markup_percentage",
-      value: "12",
-      updatedBy: adminUser.id,
-    },
-  });
+  try {
+    await prisma.platformSetting.upsert({
+      where: { key: "markup_percentage" },
+      update: {
+        value: "12",
+        updatedBy: adminUser.id,
+      },
+      create: {
+        key: "markup_percentage",
+        value: "12",
+        updatedBy: adminUser.id,
+      },
+    });
+  } catch (error: unknown) {
+    if (isMissingTableError(error, "platform_settings")) {
+      return;
+    }
+
+    throw error;
+  }
 }
 
 export async function runSeed(

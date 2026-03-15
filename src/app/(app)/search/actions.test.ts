@@ -80,7 +80,7 @@ describe("searchHotelsAction", () => {
 
     const result = await searchHotelsAction(VALID_INPUT);
 
-    expect(searchHotels).toHaveBeenCalledWith(VALID_INPUT);
+    expect(searchHotels).toHaveBeenCalledWith(VALID_INPUT, undefined);
     expect(result).toEqual({
       success: true,
       data: {

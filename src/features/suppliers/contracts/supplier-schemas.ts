@@ -9,6 +9,7 @@ export const cancellationPolicySchema = z.object({
 });
 
 export const lowestRateSchema = z.object({
+  rateId: z.string().min(1),
   supplierAmount: z.number().finite().nonnegative(),
   displayAmount: z.number().finite().nonnegative().optional(),
   currency: z.string().min(3).max(3),
@@ -23,7 +24,7 @@ export const supplierSearchResultSchema = z.object({
   supplierHotelId: z.string().min(1),
   hotelName: z.string().min(1),
   starRating: z.number().min(0).max(5),
-  address: z.string().min(1),
+  address: z.string().min(1).optional(),
   images: z.array(z.string().url()).default([]),
   lowestRate: lowestRateSchema,
   supplierMetadata: z

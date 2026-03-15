@@ -173,9 +173,10 @@ describe("expediaAdapter.search", () => {
         supplierHotelId: "19248",
         hotelName: "Rome Central Hotel",
         starRating: 4,
-        address: "Rome, Italy, Rome",
+        address: "Rome, Italy",
         images: ["https://example.com/expedia-rome.jpg"],
         lowestRate: {
+          rateId: "rate-1",
           supplierAmount: 240,
           currency: "USD",
           roomName: "Standard Room",
@@ -370,6 +371,7 @@ describe("expediaAdapter.search", () => {
                   room_name: "Suite",
                   rates: [
                     {
+                      id: "rate-3",
                       refundable: true,
                       occupancy_pricing: {
                         "2-6": {
@@ -500,6 +502,7 @@ describe("expediaAdapter.search", () => {
                   room_name: "Standard Room",
                   rates: [
                     {
+                      id: "rate-4",
                       refundable: true,
                       occupancy_pricing: {
                         "2-6": {

@@ -35,6 +35,7 @@ type TboHotel = {
 };
 
 type TboRoom = {
+  RateKey?: string;
   RoomName?: string;
   MealPlan?: string;
   TotalFare?: number;
@@ -227,6 +228,7 @@ function normalizeSearchResponse(payload: unknown): SupplierSearchResult[] {
         ? hotel.Images.filter((image): image is string => typeof image === "string")
         : [],
       lowestRate: {
+        rateId: lowestRate.RateKey,
         supplierAmount: lowestRate.TotalFare,
         currency: lowestRate.Currency,
         roomName: lowestRate.RoomName,

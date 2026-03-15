@@ -40,6 +40,7 @@ const TBO_RESULT = {
   address: "Rome, Italy",
   images: ["https://example.com/tbo.jpg"],
   lowestRate: {
+    rateId: "tbo-rate-1",
     supplierAmount: 100,
     currency: "USD",
     roomName: "Standard",
@@ -61,6 +62,7 @@ const EXPEDIA_RESULT = {
   address: "Rome, Italy",
   images: ["https://example.com/expedia.jpg"],
   lowestRate: {
+    rateId: "exp-rate-1",
     supplierAmount: 200,
     currency: "USD",
     roomName: "Deluxe",
@@ -229,5 +231,30 @@ describe("searchHotels", () => {
     });
     expect(getMarkupPercentage).not.toHaveBeenCalled();
     expect(applyMarkup).not.toHaveBeenCalled();
+  });
+
+  it("can retry a single supplier without re-querying the healthy one", async () => {
+    vi.mocked(tboAdapter.search).mockResolvedValue([TBO_RESULT]);
+
+    const result = await searchHotels(SEARCH_INPUT, { suppliers: ["tbo"] });
+
+    expect(result).toEqual({
+      results: [
+        {
+          ...TBO_RESULT,
+          lowestRate: {
+            ...TBO_RESULT.lowestRate,
+            supplierAmount: 112,
+            displayAmount: 112,
+          },
+        },
+      ],
+      supplierStatus: {
+        tbo: "success",
+        expedia: "success",
+      },
+    });
+    expect(tboAdapter.search).toHaveBeenCalledTimes(1);
+    expect(expediaAdapter.search).not.toHaveBeenCalled();
   });
 });

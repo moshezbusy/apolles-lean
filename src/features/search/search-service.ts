@@ -1,5 +1,5 @@
 import type { SupplierSearchInput } from "~/features/suppliers/contracts/supplier-adapter";
-import type { SupplierSearchResult } from "~/features/suppliers/contracts/supplier-schemas";
+import type { SupplierId, SupplierSearchResult } from "~/features/suppliers/contracts/supplier-schemas";
 import { expediaAdapter } from "~/features/suppliers/adapters/expedia-adapter";
 import { tboAdapter } from "~/features/suppliers/adapters/tbo-adapter";
 import { applyMarkup, getMarkupPercentage } from "~/features/markup/markup-service";
@@ -17,6 +17,10 @@ export type SearchSupplierStatus = {
 export type SearchServiceResult = {
   results: SupplierSearchResult[];
   supplierStatus: SearchSupplierStatus;
+};
+
+type SearchHotelsOptions = {
+  suppliers?: SupplierId[];
 };
 
 function applyPlatformMarkup(
@@ -66,10 +70,17 @@ async function withSearchTimeout<T>(
 
 export async function searchHotels(
   input: SupplierSearchInput,
+  options?: SearchHotelsOptions,
 ): Promise<SearchServiceResult> {
+  const requestedSuppliers = new Set(options?.suppliers ?? ["tbo", "expedia"]);
+
   const [tboSearchResult, expediaSearchResult] = await Promise.allSettled([
-    withSearchTimeout(tboAdapter.search(input), "tbo"),
-    withSearchTimeout(expediaAdapter.search(input), "expedia"),
+    requestedSuppliers.has("tbo")
+      ? withSearchTimeout(tboAdapter.search(input), "tbo")
+      : Promise.resolve<SupplierSearchResult[]>([]),
+    requestedSuppliers.has("expedia")
+      ? withSearchTimeout(expediaAdapter.search(input), "expedia")
+      : Promise.resolve<SupplierSearchResult[]>([]),
   ]);
 
   const supplierStatus: SearchSupplierStatus = {
@@ -79,15 +90,15 @@ export async function searchHotels(
 
   const results: SupplierSearchResult[] = [];
 
-  if (tboSearchResult.status === "fulfilled") {
+  if (requestedSuppliers.has("tbo") && tboSearchResult.status === "fulfilled") {
     results.push(...tboSearchResult.value);
-  } else {
+  } else if (requestedSuppliers.has("tbo")) {
     supplierStatus.tbo = "failed";
   }
 
-  if (expediaSearchResult.status === "fulfilled") {
+  if (requestedSuppliers.has("expedia") && expediaSearchResult.status === "fulfilled") {
     results.push(...expediaSearchResult.value);
-  } else {
+  } else if (requestedSuppliers.has("expedia")) {
     supplierStatus.expedia = "failed";
   }
 

@@ -59,6 +59,7 @@ type ExpediaRoom = {
 };
 
 type ExpediaRate = {
+  id?: string;
   refundable?: boolean;
   current_refundability?: string;
   merchant_of_record?: string;
@@ -108,6 +109,7 @@ type ExpediaResolvedProperty = {
 };
 
 type ExpediaResolvedRate = {
+  rateId: string;
   propertyId: string;
   roomName?: string;
   mealPlan?: string;
@@ -343,9 +345,11 @@ function sanitizeHtmlText(value: string | undefined): string | undefined {
 }
 
 function buildAddress(content: ExpediaContentProperty | undefined): string | undefined {
-  const segments = [content?.address?.line_1, content?.address?.city]
-    .filter((segment): segment is string => Boolean(segment?.trim()))
-    .map((segment) => segment.trim());
+  const line1 = content?.address?.line_1?.trim();
+  const city = content?.address?.city?.trim();
+  const segments = [line1]
+    .filter((segment): segment is string => Boolean(segment))
+    .concat(city && (!line1 || !line1.toLowerCase().includes(city.toLowerCase())) ? [city] : []);
 
   return segments.length > 0 ? segments.join(", ") : undefined;
 }
@@ -502,6 +506,7 @@ function pickLowestRate(
 
       const cancellation = buildCancellationDescription(rate);
       const candidate: ExpediaResolvedRate = {
+        rateId: rate.id ?? "",
         propertyId: property.property_id ?? "",
         roomName: room.room_name,
         mealPlan: getMealPlan(rate),
@@ -554,6 +559,7 @@ function normalizeAvailabilityResponse(
       address: content?.address,
       images: content?.images ?? [],
       lowestRate: {
+        rateId: lowestRate.rateId,
         supplierAmount: lowestRate.amount,
         currency: lowestRate.currency,
         roomName: lowestRate.roomName,

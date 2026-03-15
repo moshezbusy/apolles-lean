@@ -3,6 +3,8 @@ import "~/app/globals.css";
 import { type Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 
+import { Toaster } from "~/components/ui/sonner";
+
 export const metadata: Metadata = {
   title: "Apolles",
   description: "Apolles baseline application",
@@ -24,7 +26,10 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Toaster position="top-right" richColors />
+      </body>
     </html>
   );
 }

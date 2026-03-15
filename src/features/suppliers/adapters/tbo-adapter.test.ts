@@ -64,6 +64,7 @@ describe("tboAdapter.search", () => {
               Images: ["https://example.com/rome.jpg"],
               Rooms: [
                 {
+                  RateKey: "tbo-rate-1",
                   RoomName: "Standard Room",
                   MealPlan: "Room Only",
                   TotalFare: 110,
@@ -75,6 +76,7 @@ describe("tboAdapter.search", () => {
                   },
                 },
                 {
+                  RateKey: "tbo-rate-2",
                   RoomName: "Deluxe Room",
                   MealPlan: "Breakfast",
                   TotalFare: 150,
@@ -106,6 +108,7 @@ describe("tboAdapter.search", () => {
         address: "Rome, Italy",
         images: ["https://example.com/rome.jpg"],
         lowestRate: {
+          rateId: "tbo-rate-1",
           supplierAmount: 110,
           currency: "USD",
           roomName: "Standard Room",
@@ -334,6 +337,7 @@ describe("tboAdapter.search", () => {
               Images: ["https://example.com/valid.jpg"],
               Rooms: [
                 {
+                  RateKey: "tbo-rate-3",
                   RoomName: "Standard",
                   MealPlan: "Room Only",
                   TotalFare: 99,
@@ -359,6 +363,7 @@ describe("tboAdapter.search", () => {
         address: "Rome",
         images: ["https://example.com/valid.jpg"],
         lowestRate: {
+          rateId: "tbo-rate-3",
           supplierAmount: 99,
           currency: "USD",
           roomName: "Standard",
@@ -369,6 +374,60 @@ describe("tboAdapter.search", () => {
             description: "Non-refundable",
           },
           isCancellable: false,
+        },
+      },
+    ]);
+  });
+
+  it("keeps hotels that do not include an address", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          Status: { Code: 200, Description: "Success" },
+          Hotels: [
+            {
+              HotelCode: "TB-NO-ADDRESS",
+              HotelName: "Address Optional Hotel",
+              StarRating: 4,
+              Images: ["https://images.trvl-media.com/address-optional.jpg"],
+              Rooms: [
+                {
+                  RateKey: "tbo-rate-optional",
+                  RoomName: "Standard",
+                  MealPlan: "Room Only",
+                  TotalFare: 149,
+                  Currency: "USD",
+                  IsRefundable: true,
+                },
+              ],
+            },
+          ],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(tboAdapter.search(SEARCH_INPUT)).resolves.toEqual([
+      {
+        supplier: "tbo",
+        supplierHotelId: "TB-NO-ADDRESS",
+        hotelName: "Address Optional Hotel",
+        starRating: 4,
+        images: ["https://images.trvl-media.com/address-optional.jpg"],
+        lowestRate: {
+          rateId: "tbo-rate-optional",
+          supplierAmount: 149,
+          currency: "USD",
+          roomName: "Standard",
+          mealPlan: "Room Only",
+          cancellationPolicy: {
+            isRefundable: true,
+            freeCancellationUntil: null,
+            description: "Refundable",
+          },
+          isCancellable: true,
         },
       },
     ]);

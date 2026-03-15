@@ -17,6 +17,7 @@ describe("supplier normalized schemas", () => {
       address: "Rome, Italy",
       images: ["https://example.com/hotel.jpg"],
       lowestRate: {
+        rateId: "rate-1",
         supplierAmount: 120.5,
         currency: "USD",
         roomName: "Deluxe Room",
@@ -42,6 +43,7 @@ describe("supplier normalized schemas", () => {
       address: "Barcelona, Spain",
       images: ["https://example.com/hotel.jpg"],
       lowestRate: {
+        rateId: "rate-1",
         supplierAmount: 220,
         currency: "USD",
         roomName: "Deluxe Room",
@@ -74,6 +76,7 @@ describe("supplier normalized schemas", () => {
       address: "Paris, France",
       images: [],
       lowestRate: {
+        rateId: "rate-1",
         supplierAmount: 120.5,
         currency: "USD",
         roomName: "Deluxe Room",
@@ -185,7 +188,7 @@ describe("supplier normalized schemas", () => {
     expect(result.success).toBe(false);
   });
 
-  it("rejects search result without address", () => {
+  it("accepts search result without address", () => {
     const result = supplierSearchResultSchema.safeParse({
       supplier: "tbo",
       supplierHotelId: "hotel-123",
@@ -193,6 +196,7 @@ describe("supplier normalized schemas", () => {
       starRating: 4,
       images: [],
       lowestRate: {
+        rateId: "rate-1",
         supplierAmount: 120.5,
         currency: "USD",
         roomName: "Deluxe Room",
@@ -205,6 +209,6 @@ describe("supplier normalized schemas", () => {
       },
     });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
   });
 });

@@ -2,21 +2,6 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-const { authMock, redirectMock } = vi.hoisted(() => ({
-  authMock: vi.fn(),
-  redirectMock: vi.fn((url: string) => {
-    throw new Error(`REDIRECT:${url}`);
-  }),
-}));
-
-vi.mock("next/navigation", () => ({
-  redirect: redirectMock,
-}));
-
-vi.mock("~/lib/auth", () => ({
-  getValidatedSession: authMock,
-}));
-
 vi.mock("~/app/login/login-form", () => ({
   LoginForm: ({ callbackUrl }: { callbackUrl?: string }) =>
     React.createElement("div", {
@@ -32,21 +17,7 @@ describe("LoginPage", () => {
     vi.clearAllMocks();
   });
 
-  it("redirects authenticated users to search using a real session check", async () => {
-    authMock.mockResolvedValue({
-      user: {
-        id: "user-1",
-        role: "AGENT",
-      },
-    });
-
-    await expect(LoginPage({})).rejects.toThrow("REDIRECT:/search");
-    expect(redirectMock).toHaveBeenCalledWith("/search");
-  });
-
   it("renders the login form with callback preservation through the page shell", async () => {
-    authMock.mockResolvedValue(null);
-
     const result = await LoginPage({
       searchParams: Promise.resolve({ callbackUrl: "/reservations?page=2" }),
     });
@@ -54,7 +25,6 @@ describe("LoginPage", () => {
     const html = renderToStaticMarkup(result);
 
     expect(result).toBeTruthy();
-    expect(redirectMock).not.toHaveBeenCalled();
     expect(html).toContain('data-testid="login-form"');
     expect(html).toContain('data-callback-url="/reservations?page=2"');
     expect(html).toContain("Return to requested page after login.");

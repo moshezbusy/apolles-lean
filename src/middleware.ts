@@ -45,13 +45,27 @@ export default async function middleware(request: NextRequest) {
   }
 
   const callbackUrl = buildCallbackUrl(pathname, request.nextUrl.search);
+  const protectedRoute = isProtectedRoute(pathname);
+  const loginRoute = isLoginRoute(pathname);
+
+  if (!protectedRoute && !loginRoute) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set(REQUEST_CALLBACK_URL_HEADER, callbackUrl);
+
+    return NextResponse.next({
+      request: {
+        headers: requestHeaders,
+      },
+    });
+  }
+
   const isAuthenticated = await hasValidSession(request);
 
-  if (!isAuthenticated && isProtectedRoute(pathname)) {
+  if (!isAuthenticated && protectedRoute) {
     return NextResponse.redirect(new URL(buildLoginRedirectPath(callbackUrl), request.url));
   }
 
-  if (isAuthenticated && isLoginRoute(pathname)) {
+  if (isAuthenticated && loginRoute) {
     return NextResponse.redirect(new URL(DEFAULT_AUTHENTICATED_REDIRECT, request.url));
   }
 

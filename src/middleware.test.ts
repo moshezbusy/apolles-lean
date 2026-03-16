@@ -87,4 +87,13 @@ describe("middleware auth routing", () => {
 
     expect(response.headers.get("location")).toBeNull();
   });
+
+  it("skips session lookups for public routes outside auth handling", async () => {
+    const request = createRequest("/");
+
+    const response = await middleware(request);
+
+    expect(response.headers.get("location")).toBeNull();
+    expect(findFirstMock).not.toHaveBeenCalled();
+  });
 });

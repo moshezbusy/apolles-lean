@@ -57,7 +57,7 @@ export function SidebarIdentity({
       <p
         className={
           collapsed
-            ? "text-[10px] leading-tight font-medium text-white break-words"
+            ? "text-[11px] leading-tight font-medium text-white break-words"
             : "text-sm font-medium text-white"
         }
       >
@@ -66,7 +66,7 @@ export function SidebarIdentity({
       <span
         className={
           collapsed
-            ? "mt-1 block text-[10px] leading-tight text-text-muted"
+            ? "mt-1 block text-[11px] leading-tight text-text-muted"
             : "text-xs text-text-muted"
         }
       >

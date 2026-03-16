@@ -1,6 +1,6 @@
 export const REQUEST_CALLBACK_URL_HEADER = "x-apolles-callback-url";
 export const DEFAULT_AUTHENTICATED_REDIRECT = "/search";
-const PROTECTED_ROUTE_PREFIXES = ["/search", "/reservations", "/admin", "/booking"];
+const PUBLIC_ROUTE_PATHS = new Set(["/", "/login"]);
 
 export function shouldBypassAuthRouting(pathname: string): boolean {
   return (
@@ -29,9 +29,7 @@ export function isLoginRoute(pathname: string): boolean {
 }
 
 export function isProtectedRoute(pathname: string): boolean {
-  return PROTECTED_ROUTE_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
-  );
+  return !PUBLIC_ROUTE_PATHS.has(pathname);
 }
 
 export function buildCallbackUrl(pathname: string, search: string): string {

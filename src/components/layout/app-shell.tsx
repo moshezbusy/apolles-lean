@@ -1,3 +1,5 @@
+import React from "react";
+
 import { type Role } from "@prisma/client";
 
 import { Sidebar } from "~/components/layout/sidebar";

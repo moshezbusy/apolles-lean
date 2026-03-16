@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import * as authorize from "~/lib/authorize";
 import {
+  listAdminReservations,
   listVisibleReservations,
-  queryVisibleReservations,
 } from "~/features/reservations/reservation-visibility";
 import { ErrorCodes } from "~/lib/errors";
 
@@ -46,11 +46,11 @@ describe("listVisibleReservations", () => {
     });
   });
 
-  it("applies the built booking scope at the query boundary", async () => {
-    await expect(
-      queryVisibleReservations({ where: { agentId: "agent-2" } }),
-    ).resolves.toMatchObject([{ bookingRef: "APL-2001", agentId: "agent-2" }]);
+  it("requires explicit admin authorization for all-bookings access", async () => {
+    await expect(listAdminReservations(createSession("AGENT", "agent-1"))).rejects.toMatchObject({
+      code: ErrorCodes.NOT_AUTHORIZED,
+    });
 
-    await expect(queryVisibleReservations({})).resolves.toHaveLength(3);
+    await expect(listAdminReservations(createSession("ADMIN", "admin-1"))).resolves.toHaveLength(3);
   });
 });

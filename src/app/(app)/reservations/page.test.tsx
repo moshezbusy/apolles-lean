@@ -2,8 +2,23 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
-const { authMock } = vi.hoisted(() => ({
+const { authMock, redirectMock } = vi.hoisted(() => ({
   authMock: vi.fn(),
+  redirectMock: vi.fn((url: string) => {
+    throw new Error(`REDIRECT:${url}`);
+  }),
+}));
+
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () =>
+    new Headers({
+      "x-apolles-callback-url": "/reservations?page=2",
+    }),
+  ),
+}));
+
+vi.mock("next/navigation", () => ({
+  redirect: redirectMock,
 }));
 
 vi.mock("~/lib/auth", () => ({
@@ -23,6 +38,13 @@ import ReservationsPage from "~/app/(app)/reservations/page";
 describe("ReservationsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("redirects unauthenticated requests to login with callback preservation", async () => {
+    authMock.mockResolvedValue(null);
+
+    await expect(ReservationsPage()).rejects.toThrow("REDIRECT:/login?callbackUrl=%2Freservations%3Fpage%3D2");
+    expect(redirectMock).toHaveBeenCalledWith("/login?callbackUrl=%2Freservations%3Fpage%3D2");
   });
 
   it("renders only the authenticated agent's reservations", async () => {

@@ -29,8 +29,8 @@ export type ActionResult<TData> =
   | { success: false; error: ActionError };
 
 export type BookingScope =
-  | { where: { agentId: string } }
-  | { where?: undefined };
+  | { kind: "agent"; where: { agentId: string } }
+  | { kind: "admin" };
 
 type ProtectedActionParams<TInput, TData> = {
   session: SessionLike;
@@ -66,10 +66,10 @@ export function buildBookingScope(session: SessionLike): BookingScope {
   assertAuthenticatedSession(session);
 
   if (session.user.role === "ADMIN") {
-    return {};
+    return { kind: "admin" };
   }
 
-  return { where: { agentId: session.user.id } };
+  return { kind: "agent", where: { agentId: session.user.id } };
 }
 
 export async function runProtectedAction<TInput, TData>({

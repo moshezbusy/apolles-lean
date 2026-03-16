@@ -79,13 +79,13 @@ describe("buildBookingScope", () => {
   it("returns scoped filter for agents", () => {
     const session = createSession("AGENT", "agent-42");
 
-    expect(buildBookingScope(session)).toEqual({ where: { agentId: "agent-42" } });
+    expect(buildBookingScope(session)).toEqual({ kind: "agent", where: { agentId: "agent-42" } });
   });
 
-  it("returns unscoped filter for admins", () => {
+  it("returns explicit all-access scope for admins", () => {
     const session = createSession("ADMIN", "admin-1");
 
-    expect(buildBookingScope(session)).toEqual({});
+    expect(buildBookingScope(session)).toEqual({ kind: "admin" });
   });
 });
 

@@ -49,7 +49,6 @@ export async function searchHotelsAction(
   return runProtectedAction<SearchActionPayload, SearchServiceResult>({
     session,
     input: { input, options },
-    role: "agent",
     validate: (payload) => requestSchema.parse(payload),
     execute: async ({ input: validatedInput }) =>
       searchHotels(validatedInput.input, validatedInput.options),

@@ -42,4 +42,17 @@ describe("AdminBookingsPage", () => {
     expect(html).toContain("Yael Agent - Coral Suites - Leah Cohen");
     expect(html).toContain("Noam Agent - Luma Resort - Maya Azulay");
   });
+
+  it("rejects non-admin sessions through the admin reservation boundary", async () => {
+    authMock.mockResolvedValue({
+      user: {
+        id: "agent-1",
+        role: "AGENT",
+      },
+    });
+
+    await expect(AdminBookingsPage()).rejects.toMatchObject({
+      code: "NOT_AUTHORIZED",
+    });
+  });
 });

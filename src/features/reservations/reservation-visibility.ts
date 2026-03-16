@@ -2,6 +2,7 @@ import {
   type BookingScope,
   buildBookingScope,
   requireAuth,
+  requireRole,
   type SessionLike,
 } from "~/lib/authorize";
 
@@ -45,23 +46,23 @@ const reservationVisibilityFixtures: ReservationVisibilityRecord[] = [
   },
 ];
 
-export async function queryVisibleReservations(
-  scope: BookingScope,
-): Promise<ReservationVisibilityRecord[]> {
-  if (scope.where?.agentId) {
-    return reservationVisibilityFixtures.filter(
-      (reservation) => reservation.agentId === scope.where?.agentId,
-    );
+async function queryVisibleReservations(scope: BookingScope): Promise<ReservationVisibilityRecord[]> {
+  if (scope.kind === "agent") {
+    return reservationVisibilityFixtures.filter((reservation) => reservation.agentId === scope.where.agentId);
   }
 
   return reservationVisibilityFixtures;
 }
 
-export async function listVisibleReservations(
-  session: SessionLike,
-): Promise<ReservationVisibilityRecord[]> {
+export async function listVisibleReservations(session: SessionLike): Promise<ReservationVisibilityRecord[]> {
   requireAuth(session);
 
   const scope = buildBookingScope(session);
   return queryVisibleReservations(scope);
+}
+
+export async function listAdminReservations(session: SessionLike): Promise<ReservationVisibilityRecord[]> {
+  requireRole(session, "admin");
+
+  return queryVisibleReservations({ kind: "admin" });
 }

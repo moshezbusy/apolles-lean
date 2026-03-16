@@ -1,12 +1,12 @@
 import React from "react";
 
 import { PageHeader } from "~/components/layout/page-header";
-import { listVisibleReservations } from "~/features/reservations/reservation-visibility";
+import { listAdminReservations } from "~/features/reservations/reservation-visibility";
 import { getValidatedSession } from "~/lib/auth";
 
 export default async function AdminBookingsPage() {
   const session = await getValidatedSession();
-  const reservations = await listVisibleReservations(session);
+  const reservations = await listAdminReservations(session);
 
   return (
     <section>

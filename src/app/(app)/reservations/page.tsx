@@ -1,11 +1,26 @@
 import React from "react";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { PageHeader } from "~/components/layout/page-header";
 import { listVisibleReservations } from "~/features/reservations/reservation-visibility";
 import { getValidatedSession } from "~/lib/auth";
+import {
+  buildLoginRedirectPath,
+  DEFAULT_AUTHENTICATED_REDIRECT,
+  REQUEST_CALLBACK_URL_HEADER,
+} from "~/lib/auth-routing";
 
 export default async function ReservationsPage() {
   const session = await getValidatedSession();
+
+  if (!session?.user) {
+    const requestHeaders = await headers();
+    const callbackUrl = requestHeaders.get(REQUEST_CALLBACK_URL_HEADER) ?? DEFAULT_AUTHENTICATED_REDIRECT;
+
+    redirect(buildLoginRedirectPath(callbackUrl));
+  }
+
   const reservations = await listVisibleReservations(session);
 
   return (

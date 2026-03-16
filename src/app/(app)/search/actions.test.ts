@@ -105,7 +105,7 @@ describe("searchHotelsAction", () => {
     });
   });
 
-  it("allows admins through the shared agent-or-admin role gate", async () => {
+  it("allows admins because hotel search is authenticated but not role-restricted", async () => {
     mockAuth.mockResolvedValue({
       user: { id: "admin-1", role: "ADMIN" },
     });

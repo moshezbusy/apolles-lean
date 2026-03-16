@@ -1,17 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import type { NextRequest } from "next/server";
-
-const { findFirstMock } = vi.hoisted(() => ({
-  findFirstMock: vi.fn(),
-}));
-
-vi.mock("~/lib/db", () => ({
-  db: {
-    session: {
-      findFirst: findFirstMock,
-    },
-  },
-}));
 
 import middleware from "~/middleware";
 
@@ -45,66 +33,55 @@ function createRequest(pathname: string, search = "", sessionToken?: string) {
 }
 
 describe("middleware auth routing", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("redirects unauthenticated protected routes to login with callback", async () => {
-    findFirstMock.mockResolvedValue(null);
+  it("redirects protected routes without a session cookie to login with callback", async () => {
     const request = createRequest("/reservations", "?page=2");
 
-    const response = await middleware(request);
+    const response = middleware(request);
 
     expect(response.headers.get("location")).toBe(
       "https://example.com/login?callbackUrl=%2Freservations%3Fpage%3D2",
     );
   });
 
-  it("redirects unauthenticated booking routes to login with callback", async () => {
-    findFirstMock.mockResolvedValue(null);
+  it("redirects protected booking routes without a session cookie to login with callback", async () => {
     const request = createRequest("/booking/tbo/hotel-1/rate-1", "?checkIn=2026-04-10");
 
-    const response = await middleware(request);
+    const response = middleware(request);
 
     expect(response.headers.get("location")).toBe(
       "https://example.com/login?callbackUrl=%2Fbooking%2Ftbo%2Fhotel-1%2Frate-1%3FcheckIn%3D2026-04-10",
     );
   });
 
-  it("allows authenticated access to protected routes", async () => {
-    findFirstMock.mockResolvedValue({ userId: "user-1" });
+  it("allows requests with a session cookie to reach protected routes", () => {
     const request = createRequest("/search", "", "valid-token");
 
-    const response = await middleware(request);
+    const response = middleware(request);
 
     expect(response.headers.get("location")).toBeNull();
-    expect(findFirstMock).toHaveBeenCalledTimes(1);
   });
 
-  it("redirects authenticated users away from login", async () => {
-    findFirstMock.mockResolvedValue({ userId: "user-1" });
+  it("allows login requests through so the page can validate real session state", () => {
     const request = createRequest("/login", "", "valid-token");
 
-    const response = await middleware(request);
+    const response = middleware(request);
 
-    expect(response.headers.get("location")).toBe("https://example.com/search");
+    expect(response.headers.get("location")).toBeNull();
   });
 
-  it("allows unauthenticated users to access login", async () => {
-    findFirstMock.mockResolvedValue(null);
+  it("allows unauthenticated users to access login", () => {
     const request = createRequest("/login");
 
-    const response = await middleware(request);
+    const response = middleware(request);
 
     expect(response.headers.get("location")).toBeNull();
   });
 
-  it("skips session lookups for public routes outside auth handling", async () => {
+  it("passes public routes through with callback context", () => {
     const request = createRequest("/");
 
-    const response = await middleware(request);
+    const response = middleware(request);
 
     expect(response.headers.get("location")).toBeNull();
-    expect(findFirstMock).not.toHaveBeenCalled();
   });
 });

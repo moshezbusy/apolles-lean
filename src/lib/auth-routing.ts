@@ -1,6 +1,14 @@
 export const REQUEST_CALLBACK_URL_HEADER = "x-apolles-callback-url";
 export const DEFAULT_AUTHENTICATED_REDIRECT = "/search";
-const PUBLIC_ROUTE_PATHS = new Set(["/", "/login"]);
+
+export type RouteAccessRule =
+  | { type: "exact"; path: string }
+  | { type: "prefix"; path: string };
+
+export const DEFAULT_PUBLIC_ROUTE_RULES: readonly RouteAccessRule[] = [
+  { type: "exact", path: "/" },
+  { type: "exact", path: "/login" },
+];
 
 export function shouldBypassAuthRouting(pathname: string): boolean {
   return (
@@ -28,8 +36,26 @@ export function isLoginRoute(pathname: string): boolean {
   return pathname === "/login";
 }
 
-export function isProtectedRoute(pathname: string): boolean {
-  return !PUBLIC_ROUTE_PATHS.has(pathname);
+function matchesRouteAccessRule(pathname: string, rule: RouteAccessRule): boolean {
+  if (rule.type === "exact") {
+    return pathname === rule.path;
+  }
+
+  return pathname === rule.path || pathname.startsWith(`${rule.path}/`);
+}
+
+export function isExplicitPublicRoute(
+  pathname: string,
+  publicRouteRules: readonly RouteAccessRule[] = DEFAULT_PUBLIC_ROUTE_RULES,
+): boolean {
+  return publicRouteRules.some((rule) => matchesRouteAccessRule(pathname, rule));
+}
+
+export function isProtectedRoute(
+  pathname: string,
+  publicRouteRules: readonly RouteAccessRule[] = DEFAULT_PUBLIC_ROUTE_RULES,
+): boolean {
+  return !isExplicitPublicRoute(pathname, publicRouteRules);
 }
 
 export function buildCallbackUrl(pathname: string, search: string): string {

@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_PUBLIC_ROUTE_RULES,
   buildLoginRedirectPath,
+  isExplicitPublicRoute,
   isLoginRoute,
   isProtectedRoute,
   normalizeCallbackUrl,
@@ -52,6 +54,30 @@ describe("isProtectedRoute", () => {
   it("does not match public routes", () => {
     expect(isProtectedRoute("/login")).toBe(false);
     expect(isProtectedRoute("/")).toBe(false);
+  });
+
+  it("keeps unknown future routes protected by default", () => {
+    expect(isProtectedRoute("/forgot-password")).toBe(true);
+    expect(isProtectedRoute("/docs/getting-started")).toBe(true);
+  });
+
+  it("allows explicitly registered future public routes", () => {
+    const futurePublicRoutes = [
+      ...DEFAULT_PUBLIC_ROUTE_RULES,
+      { type: "exact", path: "/forgot-password" } as const,
+      { type: "prefix", path: "/docs" } as const,
+    ];
+
+    expect(isProtectedRoute("/forgot-password", futurePublicRoutes)).toBe(false);
+    expect(isProtectedRoute("/docs/getting-started", futurePublicRoutes)).toBe(false);
+    expect(isProtectedRoute("/docs-private", futurePublicRoutes)).toBe(true);
+  });
+});
+
+describe("isExplicitPublicRoute", () => {
+  it("matches known public routes only when explicitly configured", () => {
+    expect(isExplicitPublicRoute("/login")).toBe(true);
+    expect(isExplicitPublicRoute("/search")).toBe(false);
   });
 });
 

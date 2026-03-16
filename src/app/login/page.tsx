@@ -1,6 +1,9 @@
 import React from "react";
+import { redirect } from "next/navigation";
 
 import { LoginForm } from "~/app/login/login-form";
+import { getValidatedSession } from "~/lib/auth";
+import { normalizeCallbackUrl } from "~/lib/auth-routing";
 
 type LoginPageProps = {
   searchParams?: Promise<{
@@ -11,6 +14,11 @@ type LoginPageProps = {
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const callbackUrl = resolvedSearchParams?.callbackUrl;
+  const session = await getValidatedSession();
+
+  if (session?.user) {
+    redirect(normalizeCallbackUrl(callbackUrl));
+  }
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[var(--color-dark)] px-6 py-20 text-white">

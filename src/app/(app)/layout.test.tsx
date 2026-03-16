@@ -7,6 +7,14 @@ const { authMock, redirectMock } = vi.hoisted(() => ({
   }),
 }));
 
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () =>
+    new Headers({
+      "x-apolles-callback-url": "/reservations?page=2",
+    }),
+  ),
+}));
+
 vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
@@ -26,13 +34,13 @@ describe("AuthenticatedLayout", () => {
     vi.clearAllMocks();
   });
 
-  it("requires middleware-authenticated requests before rendering", async () => {
+  it("redirects unauthenticated requests back to login with callback context", async () => {
     authMock.mockResolvedValue(null);
 
     await expect(AuthenticatedLayout({ children: null })).rejects.toThrow(
-      "AuthenticatedLayout requires middleware-authenticated requests before rendering.",
+      "REDIRECT:/login?callbackUrl=%2Freservations%3Fpage%3D2",
     );
-    expect(redirectMock).not.toHaveBeenCalled();
+    expect(redirectMock).toHaveBeenCalledWith("/login?callbackUrl=%2Freservations%3Fpage%3D2");
   });
 
   it("renders children for authenticated users", async () => {

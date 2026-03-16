@@ -1,6 +1,6 @@
 # Story 1.5: Simple Role-Based Authorization
 
-Status: done
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -157,6 +157,7 @@ openai/gpt-5.4
 - `pnpm build`
 - `pnpm test -- --runInBand`
 - `pnpm test -- "src/features/reservations/reservation-visibility.test.ts" "src/app/(app)/reservations/page.test.tsx" "src/app/(app)/admin/bookings/page.test.tsx"`
+- `pnpm exec next typegen --help`
 - `git status --porcelain`
 - `git diff --name-only`
 - `git diff --cached --name-only`
@@ -183,6 +184,10 @@ openai/gpt-5.4
 - Review remediation (2026-03-16): added the explicit shared role gate to `searchHotelsAction`, moved reservation scoping through a dedicated query boundary helper, replaced proof/demo wording on reservation/admin pages, and expanded regression coverage for admin access plus scoped query execution.
 - Final root-cause remediation (2026-03-16): replaced the empty-object admin scope with explicit access kinds, moved reservation/admin access derivation fully inside the reservation boundary, removed the bypassable exported query helper, restored `searchHotelsAction` to authenticated-only access for both agents and admins, and made `/reservations` redirect safely to login when session resolution fails.
 - AC #4 and AC #5 are now satisfied by runtime code: `listVisibleReservations(session)` derives viewer access internally, and `listAdminReservations(session)` requires explicit admin authorization before returning all reservations.
+- Final review remediation (2026-03-16): made `/reservations` explicitly agent-only by redirecting admins to `/admin/bookings`, tightened the reservation visibility service to reject admin access outside the admin boundary, and updated both page copies so the route split is explicit.
+- Added direct regression coverage for admin visits to `/reservations`, unauthenticated direct access to `/admin/bookings`, and the agent-only reservation service boundary.
+- Typecheck flake investigation (2026-03-16): the repo-level `tsconfig.json` includes `.next/types/**/*.ts`, while `next typegen` alone only regenerated route/validator files and left app page type files absent; `pnpm typecheck` is now stabilized by running `next typegen && next build && tsc --noEmit --incremental false` so both route types and page/layout type artifacts exist before `tsc` runs.
+- Validation passed: `pnpm test` (217/217), `pnpm typecheck`, `pnpm build`.
 
 ### Senior Developer Review (AI)
 
@@ -237,6 +242,7 @@ This ledger is cumulative across all Story 1.5 implementation and remediation pa
 - src/features/reservations/reservation-visibility.test.ts
 - src/lib/errors.ts
 - src/lib/errors.test.ts
+- package.json
 
 ### Current Review Worktree Snapshot
 
@@ -247,16 +253,13 @@ This section records git-visible changes for the active review/remediation pass 
 - Snapshot captured on 2026-03-16 after final remediation validation.
 - Current git-visible changes in this review pass:
   - `_bmad-output/implementation-artifacts/1-5-simple-role-based-authorization.md`
+  - `package.json`
   - `src/app/(app)/admin/bookings/page.test.tsx`
   - `src/app/(app)/admin/bookings/page.tsx`
   - `src/app/(app)/reservations/page.test.tsx`
   - `src/app/(app)/reservations/page.tsx`
-  - `src/app/(app)/search/actions.test.ts`
-  - `src/app/(app)/search/actions.ts`
   - `src/features/reservations/reservation-visibility.test.ts`
   - `src/features/reservations/reservation-visibility.ts`
-  - `src/lib/authorize.test.ts`
-  - `src/lib/authorize.ts`
 
 ## Change Log
 
@@ -269,3 +272,4 @@ This section records git-visible changes for the active review/remediation pass 
 - 2026-03-16: Closed the latest code-review findings by enforcing the shared role gate in `searchHotelsAction`, routing reservation visibility through an explicit scoped query helper, tightening regression coverage, and moving the story to done.
 - 2026-03-16: Re-entered review for final root-cause remediation to fix story/git traceability, workflow-state drift, reservation authorization boundary hardening, and graceful unauthenticated reservations handling.
 - 2026-03-16: Completed final root-cause remediation, refreshed review snapshot metadata, aligned sprint/story state transitions, hardened reservation access boundaries, restored authenticated-only hotel search access, and moved the story back to done.
+- 2026-03-16: Addressed the final review follow-up by making `/reservations` agent-only, keeping admin all-access only in `/admin/bookings`, adding direct route-separation tests, and stabilizing `pnpm typecheck` with a deterministic Next type-generation/build sequence.

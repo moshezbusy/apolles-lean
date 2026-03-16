@@ -5,6 +5,7 @@ import {
   requireRole,
   type SessionLike,
 } from "~/lib/authorize";
+import { AppError, ErrorCodes } from "~/lib/errors";
 
 export type ReservationVisibilityRecord = {
   id: string;
@@ -56,6 +57,13 @@ async function queryVisibleReservations(scope: BookingScope): Promise<Reservatio
 
 export async function listVisibleReservations(session: SessionLike): Promise<ReservationVisibilityRecord[]> {
   requireAuth(session);
+
+  if (session.user.role !== "AGENT") {
+    throw new AppError(
+      ErrorCodes.NOT_AUTHORIZED,
+      "Reservations is an agent-only workspace. Admins should use /admin/bookings.",
+    );
+  }
 
   const scope = buildBookingScope(session);
   return queryVisibleReservations(scope);

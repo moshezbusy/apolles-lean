@@ -2,6 +2,8 @@ import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
+import { ErrorCodes } from "~/lib/errors";
+
 const { authMock } = vi.hoisted(() => ({
   authMock: vi.fn(),
 }));
@@ -53,6 +55,14 @@ describe("AdminBookingsPage", () => {
 
     await expect(AdminBookingsPage()).rejects.toMatchObject({
       code: "NOT_AUTHORIZED",
+    });
+  });
+
+  it("rejects unauthenticated access through the admin reservation boundary", async () => {
+    authMock.mockResolvedValue(null);
+
+    await expect(AdminBookingsPage()).rejects.toMatchObject({
+      code: ErrorCodes.NOT_AUTHENTICATED,
     });
   });
 });

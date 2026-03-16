@@ -12,13 +12,13 @@ export default async function AdminBookingsPage() {
     <section>
       <PageHeader
         title="All Bookings"
-        description="Current admin booking visibility aligned with Story 1.5 authorization rules."
+        description="Admin-only all-bookings workspace."
       />
 
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <p className="text-sm text-text-secondary">
-          Admin users can review bookings without agent scoping here. Full admin filters and booking management
-          tooling arrive in Epic 6.
+          Full booking visibility is available only in this admin route. Agent-facing /reservations stays scoped
+          to the signed-in agent. Full admin filters and booking management tooling arrive in Epic 6.
         </p>
 
         <ul className="mt-4 space-y-3" aria-label="Admin-visible bookings">

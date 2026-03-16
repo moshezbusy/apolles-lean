@@ -21,19 +21,24 @@ export default async function ReservationsPage() {
     redirect(buildLoginRedirectPath(callbackUrl));
   }
 
+  if (session.user.role === "ADMIN") {
+    redirect("/admin/bookings");
+  }
+
   const reservations = await listVisibleReservations(session);
 
   return (
     <section>
       <PageHeader
         title="Reservations"
-        description="Current reservation visibility aligned with Story 1.5 authorization rules."
+        description="Agent-only reservations workspace for your own bookings."
       />
 
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <p className="text-sm text-text-secondary">
-          Reservations shown here are limited to the authenticated agent. Full filtering, sorting, and detail
-          workflows arrive in Epic 5.
+          This route is only for agents reviewing their own reservations. Admins are redirected to
+          /admin/bookings for all-bookings access. Full filtering, sorting, and detail workflows arrive in
+          Epic 5.
         </p>
 
         <ul className="mt-4 space-y-3" aria-label="Visible reservations">

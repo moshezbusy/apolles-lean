@@ -30,14 +30,10 @@ describe("listVisibleReservations", () => {
     expect(reservations.every((reservation) => reservation.agentId === "agent-1")).toBe(true);
   });
 
-  it("returns unscoped reservations for admins", async () => {
-    const reservations = await listVisibleReservations(createSession("ADMIN", "admin-1"));
-
-    expect(reservations.map((reservation) => reservation.bookingRef)).toEqual([
-      "APL-1001",
-      "APL-1002",
-      "APL-2001",
-    ]);
+  it("rejects admin sessions so all-bookings access stays behind the admin boundary", async () => {
+    await expect(listVisibleReservations(createSession("ADMIN", "admin-1"))).rejects.toMatchObject({
+      code: ErrorCodes.NOT_AUTHORIZED,
+    });
   });
 
   it("fails safely for invalid sessions", async () => {

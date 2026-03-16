@@ -61,6 +61,18 @@ describe("ReservationsPage", () => {
     expect(html).toContain("APL-1001");
     expect(html).toContain("APL-1002");
     expect(html).not.toContain("APL-2001");
-    expect(html).toContain("Story 1.5 authorization rules");
+    expect(html).toContain("Agent-only reservations workspace");
+  });
+
+  it("redirects admin users to the admin bookings surface", async () => {
+    authMock.mockResolvedValue({
+      user: {
+        id: "admin-1",
+        role: "ADMIN",
+      },
+    });
+
+    await expect(ReservationsPage()).rejects.toThrow("REDIRECT:/admin/bookings");
+    expect(redirectMock).toHaveBeenCalledWith("/admin/bookings");
   });
 });

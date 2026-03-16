@@ -1,4 +1,5 @@
 import {
+  type BookingScope,
   buildBookingScope,
   requireAuth,
   type SessionLike,
@@ -44,13 +45,9 @@ const reservationVisibilityFixtures: ReservationVisibilityRecord[] = [
   },
 ];
 
-export async function listVisibleReservations(
-  session: SessionLike,
+export async function queryVisibleReservations(
+  scope: BookingScope,
 ): Promise<ReservationVisibilityRecord[]> {
-  requireAuth(session);
-
-  const scope = buildBookingScope(session);
-
   if (scope.where?.agentId) {
     return reservationVisibilityFixtures.filter(
       (reservation) => reservation.agentId === scope.where?.agentId,
@@ -58,4 +55,13 @@ export async function listVisibleReservations(
   }
 
   return reservationVisibilityFixtures;
+}
+
+export async function listVisibleReservations(
+  session: SessionLike,
+): Promise<ReservationVisibilityRecord[]> {
+  requireAuth(session);
+
+  const scope = buildBookingScope(session);
+  return queryVisibleReservations(scope);
 }

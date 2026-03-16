@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import * as authorize from "~/lib/authorize";
-import { listVisibleReservations } from "~/features/reservations/reservation-visibility";
+import {
+  listVisibleReservations,
+  queryVisibleReservations,
+} from "~/features/reservations/reservation-visibility";
 import { ErrorCodes } from "~/lib/errors";
 
 function createSession(role: "ADMIN" | "AGENT", userId = "user-1") {
@@ -41,5 +44,13 @@ describe("listVisibleReservations", () => {
     await expect(listVisibleReservations(null)).rejects.toMatchObject({
       code: ErrorCodes.NOT_AUTHENTICATED,
     });
+  });
+
+  it("applies the built booking scope at the query boundary", async () => {
+    await expect(
+      queryVisibleReservations({ where: { agentId: "agent-2" } }),
+    ).resolves.toMatchObject([{ bookingRef: "APL-2001", agentId: "agent-2" }]);
+
+    await expect(queryVisibleReservations({})).resolves.toHaveLength(3);
   });
 });

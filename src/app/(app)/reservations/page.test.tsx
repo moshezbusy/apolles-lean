@@ -39,6 +39,6 @@ describe("ReservationsPage", () => {
     expect(html).toContain("APL-1001");
     expect(html).toContain("APL-1002");
     expect(html).not.toContain("APL-2001");
-    expect(html).toContain("Story 1.5 authorization proof");
+    expect(html).toContain("Story 1.5 authorization rules");
   });
 });

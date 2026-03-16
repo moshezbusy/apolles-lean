@@ -1,6 +1,6 @@
 # Story 1.5: Simple Role-Based Authorization
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -180,6 +180,7 @@ openai/gpt-5.4
 - Follow-up remediation (2026-03-16): added a minimal live reservation visibility slice that now consumes `buildBookingScope()` in runtime code for both `/reservations` and `/admin/bookings`.
 - Added runtime-focused tests proving agent-scoped reservation access, admin unscoped booking visibility, and safe unauthenticated failures without expanding into Epic 5 or Epic 6 feature scope.
 - Validation passed: `pnpm test -- "src/features/reservations/reservation-visibility.test.ts" "src/app/(app)/reservations/page.test.tsx" "src/app/(app)/admin/bookings/page.test.tsx"` (211/211), `pnpm typecheck`, `pnpm build`.
+- Review remediation (2026-03-16): added the explicit shared role gate to `searchHotelsAction`, moved reservation scoping through a dedicated query boundary helper, replaced proof/demo wording on reservation/admin pages, and expanded regression coverage for admin access plus scoped query execution.
 
 ### Senior Developer Review (AI)
 
@@ -202,6 +203,12 @@ openai/gpt-5.4
 - Findings fixed: 1 High, 3 Medium
 - Remaining issue: booking/reservation runtime queries are still not implemented, so ACs for enforced runtime agent/admin query scoping (AC #4/#5) remain pending until those features exist
 - Validation rerun: `pnpm test -- --runInBand` (206/206), `pnpm typecheck`
+
+- Reviewer: Moshe
+- Date: 2026-03-16
+- Outcome: Approved after fixes
+- Findings fixed: 2 High, 2 Medium
+- Validation rerun: `pnpm test -- "src/app/(app)/search/actions.test.ts" "src/features/reservations/reservation-visibility.test.ts" "src/app/(app)/reservations/page.test.tsx" "src/app/(app)/admin/bookings/page.test.tsx"` (213/213), `pnpm typecheck`
 
 ### File List
 
@@ -229,3 +236,4 @@ openai/gpt-5.4
 - 2026-03-14: Re-ran code review, corrected authorization helper shape and admin login redirect handling, added regression tests, and moved story back to in-progress because runtime booking/reservation scoping is still pending.
 - 2026-03-16: Applied automatic code-review remediations for precondition ordering, typed unexpected failure handling, and admin unauthenticated redirect behavior; story remains in-progress due to pending runtime booking/reservation query implementations.
 - 2026-03-16: Added a lean runtime reservation visibility slice for `/reservations` and `/admin/bookings`, proving `buildBookingScope()` is consumed in live code and moving the story back to review.
+- 2026-03-16: Closed the latest code-review findings by enforcing the shared role gate in `searchHotelsAction`, routing reservation visibility through an explicit scoped query helper, tightening regression coverage, and moving the story to done.

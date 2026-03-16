@@ -12,13 +12,13 @@ export default async function ReservationsPage() {
     <section>
       <PageHeader
         title="Reservations"
-        description="Minimal live reservation visibility for Story 1.5 authorization proof."
+        description="Current reservation visibility aligned with Story 1.5 authorization rules."
       />
 
       <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
         <p className="text-sm text-text-secondary">
-          This lean runtime slice proves agent-scoped reservation access. Full reservations tooling remains in
-          Epic 5.
+          Reservations shown here are limited to the authenticated agent. Full filtering, sorting, and detail
+          workflows arrive in Epic 5.
         </p>
 
         <ul className="mt-4 space-y-3" aria-label="Visible reservations">

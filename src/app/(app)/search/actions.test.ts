@@ -105,6 +105,27 @@ describe("searchHotelsAction", () => {
     });
   });
 
+  it("allows admins through the shared agent-or-admin role gate", async () => {
+    mockAuth.mockResolvedValue({
+      user: { id: "admin-1", role: "ADMIN" },
+    });
+    mockSearchHotels.mockResolvedValue({
+      results: [],
+      supplierStatus: { tbo: "success", expedia: "success" },
+    });
+
+    const result = await searchHotelsAction(VALID_INPUT);
+
+    expect(searchHotels).toHaveBeenCalledWith(VALID_INPUT, undefined);
+    expect(result).toEqual({
+      success: true,
+      data: {
+        results: [],
+        supplierStatus: { tbo: "success", expedia: "success" },
+      },
+    });
+  });
+
   it("returns validation error for invalid supplier filter options", async () => {
     mockAuth.mockResolvedValue({
       user: { id: "agent-1", role: "AGENT" },

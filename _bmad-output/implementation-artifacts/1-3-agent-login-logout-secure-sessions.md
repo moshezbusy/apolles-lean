@@ -1,6 +1,6 @@
 # Story 1.3: Agent Login, Logout & Secure Sessions
 
-Status: review
+Status: done
 
 ## Story
 
@@ -99,6 +99,9 @@ openai/gpt-5.3-codex
 - `pnpm test`
 - `pnpm build`
 - `pnpm typecheck`
+- `pnpm vitest run src/lib/auth.test.ts src/lib/auth-routing.test.ts src/lib/auth-credentials.test.ts src/middleware.test.ts src/app/login/actions.test.ts src/app/login/page.test.tsx "src/app/(app)/layout.test.tsx" "src/app/(app)/admin/layout.test.tsx" "src/app/(app)/search/actions.test.ts" src/features/admin/agents/actions.test.ts src/components/layout/sidebar.test.tsx`
+- `pnpm test`
+- `pnpm typecheck`
 - `pnpm vitest run src/app/login/actions.test.ts src/app/login/page.test.tsx src/middleware.test.ts`
 - `pnpm test`
 - `pnpm build`
@@ -133,16 +136,26 @@ openai/gpt-5.3-codex
 - ✅ Resolved review finding [Medium]: login CTA and focus treatment now use the Apolles primary `#635BFF` instead of accent cyan.
 - Validation passed: `pnpm test` (195/195), `pnpm build`, `pnpm typecheck`.
 - 2026-03-16: Re-executed the BMAD dev-story workflow for Story 1.3, re-validated the targeted auth coverage and full regression suite, and confirmed the story is ready for review.
+- 2026-03-16: Removed Prisma-backed auth work from edge middleware, narrowed auth-routing bypass rules so dotted protected paths preserve callback context, and moved malformed-session handling to a validated server helper instead of surfacing 500s.
+- Added coverage for callback-header propagation on protected dotted routes and for malformed-session fallback in validated auth callers.
+- Validation passed: `pnpm test` (193/193), `pnpm typecheck`.
 
 ### File List
 
 - _bmad-output/implementation-artifacts/1-3-agent-login-logout-secure-sessions.md
 - _bmad-output/implementation-artifacts/sprint-status.yaml
-- apolles/src/app/login/actions.test.ts
-- apolles/src/app/login/actions.ts
-- apolles/src/app/login/login-form.tsx
+- apolles/src/app/(app)/admin/layout.test.tsx
+- apolles/src/app/(app)/admin/layout.tsx
+- apolles/src/app/(app)/layout.test.tsx
+- apolles/src/app/(app)/layout.tsx
+- apolles/src/app/(app)/search/actions.test.ts
+- apolles/src/app/(app)/search/actions.ts
 - apolles/src/app/login/page.test.tsx
 - apolles/src/app/login/page.tsx
+- apolles/src/features/admin/agents/actions.test.ts
+- apolles/src/features/admin/agents/actions.ts
+- apolles/src/lib/auth-routing.test.ts
+- apolles/src/lib/auth-routing.ts
 - apolles/src/lib/auth.test.ts
 - apolles/src/lib/auth.ts
 - apolles/src/middleware.test.ts
@@ -262,6 +275,19 @@ BMAD `code-review` workflow re-executed again with automatic fix mode to close t
 
 All 9 Acceptance Criteria re-verified as IMPLEMENTED after fixes. Quality gates re-run: `pnpm test` (195/195), `pnpm build`, `pnpm typecheck`.
 
+### Eighth Review Pass (2026-03-16)
+
+BMAD `code-review` workflow re-executed again with automatic fix mode selected for the middleware/runtime and malformed-session regressions found in the latest review.
+
+| ID | Severity | Description | Status |
+|----|----------|-------------|--------|
+| H1 | High | `src/middleware.ts` imported Auth.js with a Prisma-backed database session strategy into edge middleware, creating a deployment-risk path for protected-route gating | Fixed (middleware now only forwards callback context; validated session checks stay in server layouts/actions) |
+| H2 | High | The middleware matcher and bypass logic skipped any dotted pathname, so protected slugs such as `/reservations/acme.com` could miss auth callback preservation | Fixed (removed blanket dotted-path bypass and narrowed exclusions to known static assets) |
+| M1 | Medium | Malformed Auth.js session payloads threw a hard 500 from the session callback instead of failing closed as unauthenticated | Fixed (`getValidatedSession()` now converts the known malformed-session error into `null` across login/layout/action entry points) |
+| M2 | Medium | Story 1.3's File List no longer matched the current review-fix working tree | Fixed (File List refreshed to the actual files changed in this pass) |
+
+All 9 Acceptance Criteria verified as IMPLEMENTED after fixes. Validation re-run: `pnpm test` (193/193) and `pnpm typecheck` both pass.
+
 ## Change Log
 
 - 2026-03-12: Implemented Story 1.3 auth flow (NextAuth v5 credentials + Prisma adapter), login/logout UX/actions, middleware protection, inactive-account handling, and auth-related tests; set status to review.
@@ -274,3 +300,4 @@ All 9 Acceptance Criteria re-verified as IMPLEMENTED after fixes. Quality gates 
 - 2026-03-15: Sixth review pass — reconciled story-vs-git tracking, updated the login page to the Apolles dark treatment, made session handling fail closed on malformed roles, switched middleware gating to validated Auth.js session state, added direct auth config coverage, and set status back to review.
 - 2026-03-15: Seventh review pass — added direct expired-session and DB-session logout evidence, removed gradients from the login shell, restored primary-brand login styling, and set status back to done.
 - 2026-03-16: Re-ran the BMAD dev-story completion workflow, re-validated Story 1.3 with targeted auth tests plus the full regression suite, and moved the story back to review.
+- 2026-03-16: Eighth review pass — removed Prisma-backed auth work from edge middleware, preserved callback context for dotted protected routes, downgraded malformed session payloads to unauthenticated instead of 500s, refreshed the File List, and set status to done.

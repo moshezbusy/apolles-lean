@@ -14,7 +14,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("~/lib/auth", () => ({
-  auth: authMock,
+  getValidatedSession: authMock,
 }));
 
 vi.mock("~/app/login/login-form", () => ({

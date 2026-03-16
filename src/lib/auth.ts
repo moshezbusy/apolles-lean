@@ -29,6 +29,8 @@ class InactiveAccountError extends CredentialsSignin {
   code = "inactive_account";
 }
 
+const SESSION_ROLE_MISSING_MESSAGE = "Session callback: role missing on user payload";
+
 export const fullAuthConfig = {
   ...authConfig,
   secret: env.NEXTAUTH_SECRET,
@@ -102,11 +104,11 @@ export const fullAuthConfig = {
       const userWithRole = user as typeof user & { role?: Role };
 
       if (!userWithRole.role) {
-        logger.warn("Session callback: role missing on user payload", {
+        logger.warn(SESSION_ROLE_MISSING_MESSAGE, {
           userId: user.id,
         });
 
-        throw new Error("Session callback: role missing on user payload");
+        throw new Error(SESSION_ROLE_MISSING_MESSAGE);
       }
 
       return {
@@ -123,3 +125,15 @@ export const fullAuthConfig = {
 
 export const { handlers: authHandlers, auth, signIn, signOut } =
   NextAuth(fullAuthConfig);
+
+export async function getValidatedSession() {
+  try {
+    return await auth();
+  } catch (error) {
+    if (error instanceof Error && error.message === SESSION_ROLE_MISSING_MESSAGE) {
+      return null;
+    }
+
+    throw error;
+  }
+}

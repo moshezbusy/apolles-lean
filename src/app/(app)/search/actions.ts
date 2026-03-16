@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { SupplierSearchInput } from "~/features/suppliers/contracts/supplier-adapter";
 import { supplierIdSchema, type SupplierId } from "~/features/suppliers/contracts/supplier-schemas";
 import { searchHotels, type SearchServiceResult } from "~/features/search/search-service";
-import { auth } from "~/lib/auth";
+import { getValidatedSession } from "~/lib/auth";
 import { runProtectedAction, type ActionResult } from "~/lib/authorize";
 
 const searchInputSchema: z.ZodType<SupplierSearchInput> = z
@@ -31,7 +31,7 @@ export async function searchHotelsAction(
   input: SupplierSearchInput,
   options?: { suppliers?: SupplierId[] },
 ): Promise<ActionResult<SearchServiceResult>> {
-  const session = await auth();
+  const session = await getValidatedSession();
   const parsedOptions = z
     .object({
       suppliers: z.array(supplierIdSchema).min(1).optional(),

@@ -2,48 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildLoginRedirectPath,
-  getAuthRedirectDecision,
   normalizeCallbackUrl,
   shouldBypassAuthRouting,
 } from "~/lib/auth-routing";
-
-describe("getAuthRedirectDecision", () => {
-  it("redirects unauthenticated protected routes to login with callback", () => {
-    const decision = getAuthRedirectDecision({
-      pathname: "/reservations",
-      search: "?page=2",
-      isAuthenticated: false,
-      isAuthApiRoute: false,
-    });
-
-    expect(decision).toEqual({
-      type: "login",
-      callbackUrl: "/reservations?page=2",
-    });
-  });
-
-  it("allows login requests through when a session cookie is present", () => {
-    const decision = getAuthRedirectDecision({
-      pathname: "/login",
-      search: "",
-      isAuthenticated: true,
-      isAuthApiRoute: false,
-    });
-
-    expect(decision).toEqual({ type: "none" });
-  });
-
-  it("allows NextAuth API route without auth", () => {
-    const decision = getAuthRedirectDecision({
-      pathname: "/api/auth/session",
-      search: "",
-      isAuthenticated: false,
-      isAuthApiRoute: true,
-    });
-
-    expect(decision).toEqual({ type: "none" });
-  });
-});
 
 describe("normalizeCallbackUrl", () => {
   it("preserves safe relative callbacks", () => {
@@ -65,13 +26,14 @@ describe("buildLoginRedirectPath", () => {
 });
 
 describe("shouldBypassAuthRouting", () => {
-  it("bypasses public asset paths", () => {
-    expect(shouldBypassAuthRouting("/logo.svg")).toBe(true);
+  it("bypasses known static asset paths", () => {
     expect(shouldBypassAuthRouting("/robots.txt")).toBe(true);
+    expect(shouldBypassAuthRouting("/favicon.ico")).toBe(true);
   });
 
-  it("does not bypass authenticated app routes", () => {
+  it("does not bypass authenticated app routes or dotted slugs", () => {
     expect(shouldBypassAuthRouting("/search")).toBe(false);
     expect(shouldBypassAuthRouting("/admin/settings")).toBe(false);
+    expect(shouldBypassAuthRouting("/reservations/acme.com")).toBe(false);
   });
 });

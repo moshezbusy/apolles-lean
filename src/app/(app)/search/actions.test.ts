@@ -3,18 +3,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { searchHotelsAction } from "~/app/(app)/search/actions";
 import { searchHotels } from "~/features/search/search-service";
-import { auth } from "~/lib/auth";
+import { getValidatedSession } from "~/lib/auth";
 import { ErrorCodes } from "~/lib/errors";
 
 vi.mock("~/lib/auth", () => ({
-  auth: vi.fn(),
+  getValidatedSession: vi.fn(),
 }));
 
 vi.mock("~/features/search/search-service", () => ({
   searchHotels: vi.fn(),
 }));
 
-const mockAuth = auth as unknown as Mock;
+const mockAuth = getValidatedSession as unknown as Mock;
 const mockSearchHotels = searchHotels as unknown as Mock;
 
 const VALID_INPUT = {

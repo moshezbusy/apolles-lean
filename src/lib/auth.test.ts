@@ -46,7 +46,7 @@ vi.mock("~/lib/logger", () => ({
   },
 }));
 
-import { fullAuthConfig } from "~/lib/auth";
+import { auth, fullAuthConfig, getValidatedSession } from "~/lib/auth";
 
 describe("fullAuthConfig", () => {
   beforeEach(() => {
@@ -109,5 +109,13 @@ describe("fullAuthConfig", () => {
       id: "user-1",
       role: Role.ADMIN,
     });
+  });
+
+  it("treats malformed session payloads as unauthenticated instead of crashing callers", async () => {
+    vi.mocked(auth).mockRejectedValue(
+      new Error("Session callback: role missing on user payload"),
+    );
+
+    await expect(getValidatedSession()).resolves.toBeNull();
   });
 });

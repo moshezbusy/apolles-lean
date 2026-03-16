@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("~/lib/auth", () => ({
-  auth: authMock,
+  getValidatedSession: authMock,
 }));
 
 import AdminLayout from "~/app/(app)/admin/layout";

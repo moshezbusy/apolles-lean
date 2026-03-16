@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { auth } from "~/lib/auth";
+import { getValidatedSession } from "~/lib/auth";
 import {
   buildLoginRedirectPath,
   DEFAULT_AUTHENTICATED_REDIRECT,
@@ -16,7 +16,7 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }>) {
   const requestHeaders = await headers();
-  const session = await auth();
+  const session = await getValidatedSession();
 
   try {
     requireRole(session, "admin");

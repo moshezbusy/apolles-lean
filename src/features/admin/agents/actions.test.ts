@@ -7,12 +7,12 @@ import {
   listAgentsAction,
   setAgentStatusAction,
 } from "~/features/admin/agents/actions";
-import { auth } from "~/lib/auth";
+import { getValidatedSession } from "~/lib/auth";
 import { db } from "~/lib/db";
 import { ErrorCodes } from "~/lib/errors";
 
 vi.mock("~/lib/auth", () => ({
-  auth: vi.fn(),
+  getValidatedSession: vi.fn(),
 }));
 
 vi.mock("~/lib/db", () => ({
@@ -65,7 +65,7 @@ describe("admin agent actions", () => {
   });
 
   it("returns NOT_AUTHORIZED when non-admin attempts create", async () => {
-    vi.mocked(auth).mockResolvedValue(createAgentSession() as never);
+    vi.mocked(getValidatedSession).mockResolvedValue(createAgentSession() as never);
 
     const formData = new FormData();
     formData.set("name", "Agent One");
@@ -81,7 +81,7 @@ describe("admin agent actions", () => {
   });
 
   it("returns NOT_AUTHORIZED when non-admin attempts list", async () => {
-    vi.mocked(auth).mockResolvedValue(createAgentSession() as never);
+    vi.mocked(getValidatedSession).mockResolvedValue(createAgentSession() as never);
 
     const result = await listAgentsAction();
 
@@ -92,7 +92,7 @@ describe("admin agent actions", () => {
   });
 
   it("lists only agents for admin users", async () => {
-    vi.mocked(auth).mockResolvedValue(createAdminSession() as never);
+    vi.mocked(getValidatedSession).mockResolvedValue(createAdminSession() as never);
     vi.mocked(db.user.findMany).mockResolvedValue([
       {
         id: crypto.randomUUID(),
@@ -131,7 +131,7 @@ describe("admin agent actions", () => {
   });
 
   it("returns clear duplicate-email error", async () => {
-    vi.mocked(auth).mockResolvedValue(createAdminSession() as never);
+    vi.mocked(getValidatedSession).mockResolvedValue(createAdminSession() as never);
     vi.mocked(db.user.findUnique).mockResolvedValue({ id: crypto.randomUUID() } as never);
 
     const formData = new FormData();
@@ -149,7 +149,7 @@ describe("admin agent actions", () => {
   });
 
   it("creates an active AGENT user with bcrypt hash", async () => {
-    vi.mocked(auth).mockResolvedValue(createAdminSession() as never);
+    vi.mocked(getValidatedSession).mockResolvedValue(createAdminSession() as never);
     vi.mocked(db.user.findUnique).mockResolvedValue(null as never);
     vi.mocked(db.user.create).mockResolvedValue({ id: crypto.randomUUID() } as never);
 
@@ -172,7 +172,7 @@ describe("admin agent actions", () => {
   });
 
   it("returns a typed duplicate-email error when create hits a unique constraint race", async () => {
-    vi.mocked(auth).mockResolvedValue(createAdminSession() as never);
+    vi.mocked(getValidatedSession).mockResolvedValue(createAdminSession() as never);
     vi.mocked(db.user.findUnique).mockResolvedValue(null as never);
     vi.mocked(db.user.create).mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
@@ -199,7 +199,7 @@ describe("admin agent actions", () => {
     const admin = createAdminSession();
     const agentId = crypto.randomUUID();
 
-    vi.mocked(auth).mockResolvedValue(admin as never);
+    vi.mocked(getValidatedSession).mockResolvedValue(admin as never);
     vi.mocked(db.user.findUnique).mockResolvedValue({ id: agentId, role: Role.AGENT } as never);
     vi.mocked(db.user.update).mockResolvedValue({ id: agentId } as never);
 
@@ -230,7 +230,7 @@ describe("admin agent actions", () => {
     const admin = createAdminSession();
     const agentId = crypto.randomUUID();
 
-    vi.mocked(auth).mockResolvedValue(admin as never);
+    vi.mocked(getValidatedSession).mockResolvedValue(admin as never);
     vi.mocked(db.user.findUnique).mockResolvedValue({ id: agentId, role: Role.AGENT } as never);
     vi.mocked(db.user.update).mockResolvedValue({ id: agentId } as never);
 
@@ -253,7 +253,7 @@ describe("admin agent actions", () => {
 
   it("prevents admin from changing their own active status", async () => {
     const admin = createAdminSession();
-    vi.mocked(auth).mockResolvedValue(admin as never);
+    vi.mocked(getValidatedSession).mockResolvedValue(admin as never);
 
     const formData = new FormData();
     formData.set("userId", admin.user.id);

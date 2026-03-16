@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { AppShell } from "~/components/layout/app-shell";
-import { auth } from "~/lib/auth";
+import { getValidatedSession } from "~/lib/auth";
 import {
   buildLoginRedirectPath,
   DEFAULT_AUTHENTICATED_REDIRECT,
@@ -14,7 +14,7 @@ export default async function AuthenticatedLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const requestHeaders = await headers();
-  const session = await auth();
+  const session = await getValidatedSession();
 
   if (!session?.user) {
     redirect(

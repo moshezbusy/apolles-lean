@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { Prisma, Role } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
-import { auth } from "~/lib/auth";
+import { getValidatedSession } from "~/lib/auth";
 import { runProtectedAction, type ActionResult } from "~/lib/authorize";
 import { db } from "~/lib/db";
 import { AppError, ErrorCodes } from "~/lib/errors";
@@ -50,7 +50,7 @@ function parseSetAgentStatusInput(formData: FormData): SetAgentStatusInput {
 }
 
 export async function listAgentsAction(): Promise<ActionResult<AgentListItem[]>> {
-  const session = await auth();
+  const session = await getValidatedSession();
 
   return runProtectedAction({
     session,
@@ -79,7 +79,7 @@ export async function listAgentsAction(): Promise<ActionResult<AgentListItem[]>>
 }
 
 export async function createAgentAction(formData: FormData): Promise<ActionResult<CreateAgentResult>> {
-  const session = await auth();
+  const session = await getValidatedSession();
 
   return runProtectedAction({
     session,
@@ -134,7 +134,7 @@ export async function createAgentAction(formData: FormData): Promise<ActionResul
 export async function setAgentStatusAction(
   formData: FormData,
 ): Promise<ActionResult<SetAgentStatusResult>> {
-  const session = await auth();
+  const session = await getValidatedSession();
 
   return runProtectedAction({
     session,

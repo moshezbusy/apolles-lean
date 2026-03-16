@@ -1,17 +1,5 @@
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const { authState } = vi.hoisted(() => ({
-  authState: {
-    session: null as { user: { id: string } } | null,
-  },
-}));
-
-vi.mock("~/lib/auth", () => ({
-  auth: (handler: (request: NextRequest & { auth: typeof authState.session }) => Response) => {
-    return (request: NextRequest) => handler(Object.assign(request, { auth: authState.session }));
-  },
-}));
+import { describe, expect, it } from "vitest";
 
 import middleware from "~/middleware";
 
@@ -22,64 +10,38 @@ function createRequest(url: string, cookieHeader?: string) {
 }
 
 async function runMiddleware(request: NextRequest) {
-  return (await middleware(request, {} as never)) as Response;
+  return (await middleware(request)) as Response;
 }
 
 describe("middleware", () => {
-  beforeEach(() => {
-    authState.session = null;
-  });
-
-  it("redirects unauthenticated users to login", async () => {
+  it("forwards protected routes with a callback header for the server auth gate", async () => {
     const response = await runMiddleware(createRequest("https://example.com/reservations"));
 
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(
-      "https://example.com/login?callbackUrl=%2Freservations",
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-request-x-apolles-callback-url")).toBe(
+      "/reservations",
     );
   });
 
-  it("does not trust a bare session cookie without a validated session", async () => {
+  it("preserves callback context for dotted protected routes", async () => {
     const response = await runMiddleware(
-      createRequest("https://example.com/search", "authjs.session-token=session-value"),
+      createRequest("https://example.com/reservations/acme.com?page=2"),
     );
 
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(
-      "https://example.com/login?callbackUrl=%2Fsearch",
-    );
-  });
-
-  it("redirects expired database sessions after inactivity back to login", async () => {
-    const response = await runMiddleware(
-      createRequest(
-        "https://example.com/reservations?page=2",
-        "authjs.session-token=expired-session-token",
-      ),
-    );
-
-    expect(response.status).toBe(307);
-    expect(response.headers.get("location")).toBe(
-      "https://example.com/login?callbackUrl=%2Freservations%3Fpage%3D2",
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-request-x-apolles-callback-url")).toBe(
+      "/reservations/acme.com?page=2",
     );
   });
 
-  it("allows requests with a validated auth session", async () => {
-    authState.session = {
-      user: {
-        id: "user-1",
-      },
-    };
-
+  it("allows protected app routes through for downstream validation", async () => {
     const response = await runMiddleware(createRequest("https://example.com/search"));
 
     expect(response.status).toBe(200);
   });
 
-  it("keeps login available even when a session cookie is present", async () => {
-    const response = await runMiddleware(
-      createRequest("https://example.com/login", "authjs.session-token=session-value"),
-    );
+  it("keeps login available", async () => {
+    const response = await runMiddleware(createRequest("https://example.com/login"));
 
     expect(response.status).toBe(200);
   });

@@ -53,6 +53,5 @@ yarn-error.log*
 /api-docs/
 /_bmad-output/planning-artifacts/
 /_bmad-output/prd-validation-report.md
-/_bmad-output/implementation-artifacts/*.md
-!/_bmad-output/implementation-artifacts/1-3-agent-login-logout-secure-sessions.md
+# keep BMAD implementation story markdown tracked for review traceability
 !/_bmad-output/implementation-artifacts/sprint-status.yaml

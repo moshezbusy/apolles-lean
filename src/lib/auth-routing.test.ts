@@ -45,6 +45,7 @@ describe("isProtectedRoute", () => {
     expect(isProtectedRoute("/search")).toBe(true);
     expect(isProtectedRoute("/reservations")).toBe(true);
     expect(isProtectedRoute("/admin/settings")).toBe(true);
+    expect(isProtectedRoute("/booking/tbo/hotel-1/rate-1")).toBe(true);
   });
 
   it("does not match public routes", () => {

@@ -211,7 +211,12 @@ export function Sidebar({ userName, role }: SidebarProps) {
         <div className={`border-t border-white/20 py-4 ${collapsed ? "px-2" : "px-4"}`}>
           <SidebarIdentity userName={userName} role={role} collapsed={collapsed} />
           <form action={logoutAction} className={collapsed ? "mt-0" : "mt-3"}>
-            <button type="submit" className="text-sm text-white underline decoration-white/40 underline-offset-4">
+            <button
+              type="submit"
+              className={`inline-flex min-h-11 items-center justify-center rounded-md text-sm text-white underline decoration-white/40 underline-offset-4 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 ${
+                collapsed ? "min-w-11" : "px-2"
+              }`}
+            >
               {collapsed ? (
                 <>
                   <LogOut className="h-4 w-4" aria-hidden="true" />
@@ -233,7 +238,10 @@ export function Sidebar({ userName, role }: SidebarProps) {
           <div className="mt-5 border-t border-white/20 pt-4">
             <SidebarIdentity userName={userName} role={role} collapsed={false} />
             <form action={logoutAction} className="mt-3">
-              <button type="submit" className="text-sm text-white underline decoration-white/40 underline-offset-4">
+              <button
+                type="submit"
+                className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md px-2 text-sm text-white underline decoration-white/40 underline-offset-4 hover:bg-white/10"
+              >
                 Logout
               </button>
             </form>

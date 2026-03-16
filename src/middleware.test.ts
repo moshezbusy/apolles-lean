@@ -60,6 +60,17 @@ describe("middleware auth routing", () => {
     );
   });
 
+  it("redirects unauthenticated booking routes to login with callback", async () => {
+    findFirstMock.mockResolvedValue(null);
+    const request = createRequest("/booking/tbo/hotel-1/rate-1", "?checkIn=2026-04-10");
+
+    const response = await middleware(request);
+
+    expect(response.headers.get("location")).toBe(
+      "https://example.com/login?callbackUrl=%2Fbooking%2Ftbo%2Fhotel-1%2Frate-1%3FcheckIn%3D2026-04-10",
+    );
+  });
+
   it("allows authenticated access to protected routes", async () => {
     findFirstMock.mockResolvedValue({ userId: "user-1" });
     const request = createRequest("/search", "", "valid-token");

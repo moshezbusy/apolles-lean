@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildLoginRedirectPath,
+  isLoginRoute,
+  isProtectedRoute,
   normalizeCallbackUrl,
   shouldBypassAuthRouting,
 } from "~/lib/auth-routing";
@@ -35,5 +37,26 @@ describe("shouldBypassAuthRouting", () => {
     expect(shouldBypassAuthRouting("/search")).toBe(false);
     expect(shouldBypassAuthRouting("/admin/settings")).toBe(false);
     expect(shouldBypassAuthRouting("/reservations/acme.com")).toBe(false);
+  });
+});
+
+describe("isProtectedRoute", () => {
+  it("matches authenticated app routes", () => {
+    expect(isProtectedRoute("/search")).toBe(true);
+    expect(isProtectedRoute("/reservations")).toBe(true);
+    expect(isProtectedRoute("/admin/settings")).toBe(true);
+  });
+
+  it("does not match public routes", () => {
+    expect(isProtectedRoute("/login")).toBe(false);
+    expect(isProtectedRoute("/")).toBe(false);
+  });
+});
+
+describe("isLoginRoute", () => {
+  it("matches only login", () => {
+    expect(isLoginRoute("/login")).toBe(true);
+    expect(isLoginRoute("/login/help")).toBe(false);
+    expect(isLoginRoute("/search")).toBe(false);
   });
 });

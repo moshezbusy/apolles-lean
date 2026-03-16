@@ -1,54 +1,90 @@
-import { NextRequest } from "next/server";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { NextRequest } from "next/server";
+
+const { findFirstMock } = vi.hoisted(() => ({
+  findFirstMock: vi.fn(),
+}));
+
+vi.mock("~/lib/db", () => ({
+  db: {
+    session: {
+      findFirst: findFirstMock,
+    },
+  },
+}));
 
 import middleware from "~/middleware";
 
-function createRequest(url: string, cookieHeader?: string) {
-  return new NextRequest(url, {
-    headers: cookieHeader ? { cookie: cookieHeader } : undefined,
-  });
+function createRequest(pathname: string, search = "", sessionToken?: string) {
+  const cookieValue = sessionToken;
+
+  return {
+    nextUrl: {
+      pathname,
+      search,
+    },
+    headers: new Headers(),
+    cookies: {
+      get: (name: string) => {
+        if (!cookieValue) {
+          return undefined;
+        }
+
+        if (name === "authjs.session-token" || name === "__Secure-authjs.session-token") {
+          return {
+            name,
+            value: cookieValue,
+          };
+        }
+
+        return undefined;
+      },
+    },
+    url: `https://example.com${pathname}${search}`,
+  } as unknown as NextRequest;
 }
 
-async function runMiddleware(request: NextRequest) {
-  return (await middleware(request)) as Response;
-}
+describe("middleware auth routing", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
 
-describe("middleware", () => {
-  it("forwards protected routes with a callback header for the server auth gate", async () => {
-    const response = await runMiddleware(createRequest("https://example.com/reservations"));
+  it("redirects unauthenticated protected routes to login with callback", async () => {
+    findFirstMock.mockResolvedValue(null);
+    const request = createRequest("/reservations", "?page=2");
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("x-middleware-request-x-apolles-callback-url")).toBe(
-      "/reservations",
+    const response = await middleware(request);
+
+    expect(response.headers.get("location")).toBe(
+      "https://example.com/login?callbackUrl=%2Freservations%3Fpage%3D2",
     );
   });
 
-  it("preserves callback context for dotted protected routes", async () => {
-    const response = await runMiddleware(
-      createRequest("https://example.com/reservations/acme.com?page=2"),
-    );
+  it("allows authenticated access to protected routes", async () => {
+    findFirstMock.mockResolvedValue({ userId: "user-1" });
+    const request = createRequest("/search", "", "valid-token");
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("x-middleware-request-x-apolles-callback-url")).toBe(
-      "/reservations/acme.com?page=2",
-    );
+    const response = await middleware(request);
+
+    expect(response.headers.get("location")).toBeNull();
+    expect(findFirstMock).toHaveBeenCalledTimes(1);
   });
 
-  it("allows protected app routes through for downstream validation", async () => {
-    const response = await runMiddleware(createRequest("https://example.com/search"));
+  it("redirects authenticated users away from login", async () => {
+    findFirstMock.mockResolvedValue({ userId: "user-1" });
+    const request = createRequest("/login", "", "valid-token");
 
-    expect(response.status).toBe(200);
+    const response = await middleware(request);
+
+    expect(response.headers.get("location")).toBe("https://example.com/search");
   });
 
-  it("keeps login available", async () => {
-    const response = await runMiddleware(createRequest("https://example.com/login"));
+  it("allows unauthenticated users to access login", async () => {
+    findFirstMock.mockResolvedValue(null);
+    const request = createRequest("/login");
 
-    expect(response.status).toBe(200);
-  });
+    const response = await middleware(request);
 
-  it("allows public asset requests without auth", async () => {
-    const response = await runMiddleware(createRequest("https://example.com/logo.svg"));
-
-    expect(response.status).toBe(200);
+    expect(response.headers.get("location")).toBeNull();
   });
 });

@@ -1,11 +1,43 @@
 import { type NextRequest, NextResponse } from "next/server";
 import {
   buildCallbackUrl,
+  buildLoginRedirectPath,
+  DEFAULT_AUTHENTICATED_REDIRECT,
+  isLoginRoute,
+  isProtectedRoute,
   REQUEST_CALLBACK_URL_HEADER,
   shouldBypassAuthRouting,
 } from "~/lib/auth-routing";
+import { db } from "~/lib/db";
 
-export default function middleware(request: NextRequest) {
+const SESSION_COOKIE_NAMES = ["authjs.session-token", "__Secure-authjs.session-token"];
+
+async function hasValidSession(request: NextRequest) {
+  const sessionToken = SESSION_COOKIE_NAMES.map((name) => request.cookies.get(name)?.value).find(Boolean);
+
+  if (!sessionToken) {
+    return false;
+  }
+
+  const session = await db.session.findFirst({
+    where: {
+      sessionToken,
+      expires: {
+        gt: new Date(),
+      },
+      user: {
+        isActive: true,
+      },
+    },
+    select: {
+      userId: true,
+    },
+  });
+
+  return Boolean(session?.userId);
+}
+
+export default async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   if (shouldBypassAuthRouting(pathname)) {
@@ -13,6 +45,15 @@ export default function middleware(request: NextRequest) {
   }
 
   const callbackUrl = buildCallbackUrl(pathname, request.nextUrl.search);
+  const isAuthenticated = await hasValidSession(request);
+
+  if (!isAuthenticated && isProtectedRoute(pathname)) {
+    return NextResponse.redirect(new URL(buildLoginRedirectPath(callbackUrl), request.url));
+  }
+
+  if (isAuthenticated && isLoginRoute(pathname)) {
+    return NextResponse.redirect(new URL(DEFAULT_AUTHENTICATED_REDIRECT, request.url));
+  }
 
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set(REQUEST_CALLBACK_URL_HEADER, callbackUrl);

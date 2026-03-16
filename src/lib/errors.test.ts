@@ -6,6 +6,7 @@ const expectedStatusByErrorCode = {
   [ErrorCodes.NOT_AUTHENTICATED]: 401,
   [ErrorCodes.NOT_AUTHORIZED]: 403,
   [ErrorCodes.VALIDATION_ERROR]: 400,
+  [ErrorCodes.INTERNAL_ERROR]: 500,
   [ErrorCodes.SUPPLIER_TIMEOUT]: 504,
   [ErrorCodes.SUPPLIER_ERROR]: 502,
   [ErrorCodes.RATE_UNAVAILABLE]: 409,

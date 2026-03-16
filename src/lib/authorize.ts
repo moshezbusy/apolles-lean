@@ -111,6 +111,12 @@ export async function runProtectedAction<TInput, TData>({
       };
     }
 
-    throw error;
+    return {
+      success: false,
+      error: {
+        code: ErrorCodes.INTERNAL_ERROR,
+        message: "An unexpected error occurred",
+      },
+    };
   }
 }

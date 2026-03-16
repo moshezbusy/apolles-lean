@@ -190,4 +190,23 @@ describe("runProtectedAction", () => {
       },
     });
   });
+
+  it("returns INTERNAL_ERROR for unexpected failures", async () => {
+    const result = await runProtectedAction({
+      session: createSession("ADMIN"),
+      role: "admin",
+      input: { value: "ok" },
+      execute: async () => {
+        throw new Error("boom");
+      },
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: {
+        code: ErrorCodes.INTERNAL_ERROR,
+        message: "An unexpected error occurred",
+      },
+    });
+  });
 });

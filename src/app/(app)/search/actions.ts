@@ -27,22 +27,30 @@ const searchInputSchema: z.ZodType<SupplierSearchInput> = z
     }
   });
 
+type SearchActionPayload = {
+  input: SupplierSearchInput;
+  options?: { suppliers?: SupplierId[] };
+};
+
 export async function searchHotelsAction(
   input: SupplierSearchInput,
   options?: { suppliers?: SupplierId[] },
 ): Promise<ActionResult<SearchServiceResult>> {
   const session = await getValidatedSession();
-  const parsedOptions = z
-    .object({
-      suppliers: z.array(supplierIdSchema).min(1).optional(),
-    })
-    .optional()
-    .parse(options);
+  const requestSchema: z.ZodType<SearchActionPayload> = z.object({
+    input: searchInputSchema,
+    options: z
+      .object({
+        suppliers: z.array(supplierIdSchema).min(1).optional(),
+      })
+      .optional(),
+  });
 
-  return runProtectedAction({
+  return runProtectedAction<SearchActionPayload, SearchServiceResult>({
     session,
-    input,
-    validate: (payload) => searchInputSchema.parse(payload),
-    execute: async ({ input: validatedInput }) => searchHotels(validatedInput, parsedOptions),
+    input: { input, options },
+    validate: (payload) => requestSchema.parse(payload),
+    execute: async ({ input: validatedInput }) =>
+      searchHotels(validatedInput.input, validatedInput.options),
   });
 }

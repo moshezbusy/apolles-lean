@@ -49,6 +49,21 @@ describe("searchHotelsAction", () => {
     });
   });
 
+  it("does not validate options before authentication", async () => {
+    mockAuth.mockResolvedValue(null);
+
+    const result = await searchHotelsAction(VALID_INPUT, { suppliers: [] });
+
+    expect(searchHotels).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      success: false,
+      error: {
+        code: ErrorCodes.NOT_AUTHENTICATED,
+        message: "Authentication required",
+      },
+    });
+  });
+
   it("validates input before calling the service", async () => {
     mockAuth.mockResolvedValue({
       user: { id: "agent-1", role: "AGENT" },
@@ -88,5 +103,20 @@ describe("searchHotelsAction", () => {
         supplierStatus: { tbo: "success", expedia: "success" },
       },
     });
+  });
+
+  it("returns validation error for invalid supplier filter options", async () => {
+    mockAuth.mockResolvedValue({
+      user: { id: "agent-1", role: "AGENT" },
+    });
+
+    const result = await searchHotelsAction(VALID_INPUT, { suppliers: [] });
+
+    expect(searchHotels).not.toHaveBeenCalled();
+    expect(result.success).toBe(false);
+
+    if (!result.success) {
+      expect(result.error.code).toBe(ErrorCodes.VALIDATION_ERROR);
+    }
   });
 });

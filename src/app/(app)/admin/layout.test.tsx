@@ -7,6 +7,14 @@ const { authMock, redirectMock } = vi.hoisted(() => ({
   }),
 }));
 
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () =>
+    new Headers({
+      "x-apolles-callback-url": "/admin/bookings?page=2",
+    }),
+  ),
+}));
+
 vi.mock("next/navigation", () => ({
   redirect: redirectMock,
 }));
@@ -26,9 +34,9 @@ describe("AdminLayout", () => {
     authMock.mockResolvedValue(null);
 
     await expect(AdminLayout({ children: null })).rejects.toThrow(
-      "AdminLayout requires middleware-authenticated requests before rendering.",
+      "REDIRECT:/login?callbackUrl=%2Fadmin%2Fbookings%3Fpage%3D2",
     );
-    expect(redirectMock).not.toHaveBeenCalled();
+    expect(redirectMock).toHaveBeenCalledWith("/login?callbackUrl=%2Fadmin%2Fbookings%3Fpage%3D2");
   });
 
   it("redirects non-admin users to search", async () => {

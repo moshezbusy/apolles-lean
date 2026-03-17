@@ -190,6 +190,7 @@ openai/gpt-5.4
 - Added direct regression coverage for admin visits to `/reservations`, unauthenticated direct access to `/admin/bookings`, and the agent-only reservation service boundary.
 - Typecheck flake investigation (2026-03-16): the repo-level `tsconfig.json` includes `.next/types/**/*.ts`, while `next typegen` alone only regenerated route/validator files and left app page type files absent; `pnpm typecheck` is now stabilized by running `next typegen && next build && tsc --noEmit --incremental false` so both route types and page/layout type artifacts exist before `tsc` runs.
 - Validation passed: `pnpm test` (217/217), `pnpm typecheck`, `pnpm build`.
+- Code-review traceability remediation (2026-03-17): refreshed the story with an explicit `Dev Agent Record -> File List`, corrected the current worktree snapshot to match live git, and removed the overclaim that `/admin/bookings` consumes `buildBookingScope()` directly at runtime.
 
 ### Senior Developer Review (AI)
 
@@ -240,6 +241,31 @@ openai/gpt-5.4
 - Deferred scope: persisted agent reservations query enforcement belongs with booking persistence and reservations/admin stories in Epic 4, Epic 5, and Epic 6.
 - Validation note: no additional persistence implementation required for this correction pass
 
+- Reviewer: OpenCode
+- Date: 2026-03-17
+- Outcome: Approved after traceability fixes
+- Findings fixed: 1 High, 2 Medium
+- Validation rerun: `git status --porcelain`, `git diff --name-only`, `git diff --cached --name-only`
+
+### File List
+
+- `_bmad-output/implementation-artifacts/1-5-simple-role-based-authorization.md`
+- `src/lib/authorize.ts`
+- `src/lib/authorize.test.ts`
+- `src/app/(app)/admin/layout.tsx`
+- `src/app/(app)/admin/layout.test.tsx`
+- `src/app/(app)/admin/bookings/page.tsx`
+- `src/app/(app)/admin/bookings/page.test.tsx`
+- `src/app/(app)/search/actions.ts`
+- `src/app/(app)/search/actions.test.ts`
+- `src/app/(app)/reservations/page.tsx`
+- `src/app/(app)/reservations/page.test.tsx`
+- `src/features/reservations/reservation-visibility.ts`
+- `src/features/reservations/reservation-visibility.test.ts`
+- `src/lib/errors.ts`
+- `src/lib/errors.test.ts`
+- `package.json`
+
 ### Implementation File Ledger (Cumulative)
 
 This ledger is cumulative across all Story 1.5 implementation and remediation passes. It is historical context only and does not imply that these files currently have uncommitted git changes.
@@ -267,11 +293,10 @@ This section records git-visible changes for the active review/remediation pass 
 
 - Snapshot commands: `git status --porcelain`, `git diff --name-only`, `git diff --cached --name-only`
 - Snapshot rule: when the worktree is clean, record `No current git-visible changes; repository clean at review time.`
-- Snapshot captured on 2026-03-16 during remediation follow-up.
+- Snapshot captured on 2026-03-17 during BMAD code review.
 - Current git-visible changes in this review pass are refreshed from the live commands listed above and must match the active worktree exactly.
 - Current git-visible changes in this review pass:
-  - `_bmad-output/implementation-artifacts/1-5-simple-role-based-authorization.md`
-  - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+  - No current git-visible changes; repository clean at review time.
 
 ## Change Log
 
@@ -287,3 +312,4 @@ This section records git-visible changes for the active review/remediation pass 
 - 2026-03-16: Addressed the final review follow-up by making `/reservations` agent-only, keeping admin all-access only in `/admin/bookings`, adding direct route-separation tests, and stabilizing `pnpm typecheck` with a deterministic Next type-generation/build sequence.
 - 2026-03-16: Re-ran BMAD code review remediation, confirmed AC #4/#5 still overclaim fixture-backed query enforcement, corrected Story 1.5 back to in-progress, re-synced sprint tracking, and refreshed the review worktree snapshot to the live git state.
 - 2026-03-17: Executed BMAD story-scope correction, updated Story 1.5 acceptance criteria to match its intended authorization-foundation role, explicitly deferred persisted bookings/reservations enforcement to later roadmap stories, and moved the story back to done.
+- 2026-03-17: Fixed BMAD code-review traceability findings by restoring an explicit Dev Agent Record file list, correcting the live worktree snapshot to the clean git state, and removing the story overclaim about direct admin-path `buildBookingScope()` consumption.

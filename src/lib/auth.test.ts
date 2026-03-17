@@ -53,11 +53,26 @@ describe("fullAuthConfig", () => {
     vi.clearAllMocks();
   });
 
-  it("uses database-backed sessions with a 30-minute inactivity timeout", () => {
+  it("uses JWT sessions so credentials sign-in is supported", () => {
     expect(fullAuthConfig.session).toMatchObject({
-      strategy: "database",
+      strategy: "jwt",
       maxAge: 60 * 30,
       updateAge: 5 * 60,
+    });
+  });
+
+  it("stores the authenticated user identity on the JWT payload", async () => {
+    const token = await fullAuthConfig.callbacks?.jwt?.({
+      token: {},
+      user: {
+        id: "user-1",
+        role: Role.ADMIN,
+      } as never,
+    } as never);
+
+    expect(token).toMatchObject({
+      sub: "user-1",
+      role: Role.ADMIN,
     });
   });
 
@@ -69,7 +84,7 @@ describe("fullAuthConfig", () => {
     });
   });
 
-  it("fails closed when the session callback receives a user without a role", async () => {
+  it("fails closed when the session callback receives a token without a role", async () => {
     await expect(
       fullAuthConfig.callbacks?.session?.({
         session: {
@@ -78,19 +93,19 @@ describe("fullAuthConfig", () => {
           },
           expires: "2026-03-14T00:00:00.000Z",
         },
-        user: {
-          id: "user-1",
+        token: {
+          sub: "user-1",
         } as never,
       } as never),
     ).rejects.toThrow("Session callback: role missing on user payload");
 
     expect(loggerWarnMock).toHaveBeenCalledWith(
       "Session callback: role missing on user payload",
-      { userId: "user-1" },
-    );
+        { userId: "user-1" },
+      );
   });
 
-  it("keeps the database role on the session payload", async () => {
+  it("keeps the JWT role on the session payload", async () => {
     const session = await fullAuthConfig.callbacks?.session?.({
       session: {
         user: {
@@ -99,8 +114,8 @@ describe("fullAuthConfig", () => {
         },
         expires: "2026-03-14T00:00:00.000Z",
       },
-      user: {
-        id: "user-1",
+      token: {
+        sub: "user-1",
         role: Role.ADMIN,
       } as never,
     } as never);
@@ -117,5 +132,23 @@ describe("fullAuthConfig", () => {
     );
 
     await expect(getValidatedSession()).resolves.toBeNull();
+  });
+
+  it("returns the validated session when the payload is well-formed", async () => {
+    vi.mocked(auth).mockResolvedValue({
+      user: {
+        id: "user-1",
+        name: "Agent Example",
+        role: Role.AGENT,
+      },
+    } as never);
+
+    await expect(getValidatedSession()).resolves.toMatchObject({
+      user: {
+        id: "user-1",
+        name: "Agent Example",
+        role: Role.AGENT,
+      },
+    });
   });
 });

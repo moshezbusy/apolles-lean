@@ -1,6 +1,6 @@
 # Story 1.3: Agent Login, Logout & Secure Sessions
 
-Status: done
+Status: review
 
 ## Story
 
@@ -99,6 +99,21 @@ openai/gpt-5.3-codex
 - `pnpm test`
 - `pnpm build`
 - `pnpm typecheck`
+- `pnpm vitest run src/lib/auth.test.ts` (RED: credentials/session strategy regression reproduced in unit coverage)
+- `SEED_ADMIN_PASSWORD="Admin123!" SEED_AGENT_PASSWORD="Agent123!" pnpm db:seed`
+- `pnpm vitest run src/lib/auth.test.ts src/app/login/actions.test.ts`
+- `pnpm vitest run src/lib/auth.test.ts src/app/login/actions.test.ts src/app/login/page.test.tsx src/middleware.test.ts "src/app/(app)/layout.test.tsx" "src/app/(app)/admin/layout.test.tsx" src/features/admin/agents/actions.test.ts`
+- `pnpm test`
+- `pnpm typecheck`
+- `pnpm build`
+- `AUTH_TRUST_HOST=true PORT=3002 pnpm start`
+- `curl http://localhost:3002/api/auth/csrf`
+- `curl -X POST http://localhost:3002/api/auth/callback/credentials ... admin.test@apolles.local / Admin123!`
+- `curl -X POST http://localhost:3002/api/auth/callback/credentials ... agent.test@apolles.local / Agent123!`
+- `curl -X POST http://localhost:3002/api/auth/callback/credentials ... agent.test@apolles.local / Wrong123!`
+- `curl http://localhost:3002/api/auth/session` (verified JWT session payloads for admin + agent; invalid login returns `null`)
+- `curl http://localhost:3002/reservations` with admin session (307 redirect to `/admin/bookings`)
+- `curl http://localhost:3002/search` with agent session (200 OK)
 - `pnpm vitest run src/lib/auth.test.ts src/lib/auth-routing.test.ts src/lib/auth-credentials.test.ts src/middleware.test.ts src/app/login/actions.test.ts src/app/login/page.test.tsx "src/app/(app)/layout.test.tsx" "src/app/(app)/admin/layout.test.tsx" "src/app/(app)/search/actions.test.ts" src/features/admin/agents/actions.test.ts src/components/layout/sidebar.test.tsx`
 - `pnpm test`
 - `pnpm typecheck`
@@ -139,27 +154,18 @@ openai/gpt-5.3-codex
 - 2026-03-16: Removed Prisma-backed auth work from edge middleware, narrowed auth-routing bypass rules so dotted protected paths preserve callback context, and moved malformed-session handling to a validated server helper instead of surfacing 500s.
 - Added coverage for callback-header propagation on protected dotted routes and for malformed-session fallback in validated auth callers.
 - Validation passed: `pnpm test` (193/193), `pnpm typecheck`.
+- 2026-03-17: Fixed the current local credentials-login regression by switching the credentials-only Auth.js setup from database sessions to JWT sessions, adding explicit JWT/session role propagation, and simplifying logout to the matching Auth.js sign-out path.
+- 2026-03-17: Added regression coverage proving credentials sign-in requires JWT strategy in this app shape, re-seeded local test users, and verified admin/agent login plus invalid-password rejection through the running app's Auth.js endpoints.
 
 ### File List
 
 - _bmad-output/implementation-artifacts/1-3-agent-login-logout-secure-sessions.md
 - _bmad-output/implementation-artifacts/sprint-status.yaml
-- apolles/src/app/(app)/admin/layout.test.tsx
-- apolles/src/app/(app)/admin/layout.tsx
-- apolles/src/app/(app)/layout.test.tsx
-- apolles/src/app/(app)/layout.tsx
-- apolles/src/app/(app)/search/actions.test.ts
-- apolles/src/app/(app)/search/actions.ts
-- apolles/src/app/login/page.test.tsx
-- apolles/src/app/login/page.tsx
-- apolles/src/features/admin/agents/actions.test.ts
-- apolles/src/features/admin/agents/actions.ts
-- apolles/src/lib/auth-routing.test.ts
-- apolles/src/lib/auth-routing.ts
+- apolles/src/app/login/actions.test.ts
+- apolles/src/app/login/actions.ts
 - apolles/src/lib/auth.test.ts
 - apolles/src/lib/auth.ts
-- apolles/src/middleware.test.ts
-- apolles/src/middleware.ts
+- apolles/src/lib/seed.test.ts
 
 ### Git Context Notes
 
@@ -301,3 +307,4 @@ All 9 Acceptance Criteria verified as IMPLEMENTED after fixes. Validation re-run
 - 2026-03-15: Seventh review pass — added direct expired-session and DB-session logout evidence, removed gradients from the login shell, restored primary-brand login styling, and set status back to done.
 - 2026-03-16: Re-ran the BMAD dev-story completion workflow, re-validated Story 1.3 with targeted auth tests plus the full regression suite, and moved the story back to review.
 - 2026-03-16: Eighth review pass — removed Prisma-backed auth work from edge middleware, preserved callback context for dotted protected routes, downgraded malformed session payloads to unauthenticated instead of 500s, refreshed the File List, and set status to done.
+- 2026-03-17: Focused auth remediation — replaced the incompatible credentials+database-session Auth.js configuration with JWT sessions, updated auth/logout regression coverage, refreshed local seed-user verification, and set status to review.

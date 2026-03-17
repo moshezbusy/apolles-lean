@@ -3,6 +3,7 @@ import { Role } from "@prisma/client";
 import NextAuth, { type DefaultSession } from "next-auth";
 import { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import type { JWT } from "next-auth/jwt";
 import { z } from "zod";
 
 import { authConfig } from "~/lib/auth.config";
@@ -20,6 +21,12 @@ declare module "next-auth" {
   }
 }
 
+declare module "next-auth/jwt" {
+  interface JWT {
+    role?: Role;
+  }
+}
+
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -31,12 +38,16 @@ class InactiveAccountError extends CredentialsSignin {
 
 const SESSION_ROLE_MISSING_MESSAGE = "Session callback: role missing on user payload";
 
+function getTokenUserId(token: JWT) {
+  return typeof token.sub === "string" && token.sub.length > 0 ? token.sub : null;
+}
+
 export const fullAuthConfig = {
   ...authConfig,
   secret: env.NEXTAUTH_SECRET,
   adapter: PrismaAdapter(db),
   session: {
-    strategy: "database",
+    strategy: "jwt",
     maxAge: 60 * 30,
     updateAge: 5 * 60,
   },
@@ -110,12 +121,25 @@ export const fullAuthConfig = {
     }),
   ],
   callbacks: {
-    session: async ({ session, user }) => {
-      const userWithRole = user as typeof user & { role?: Role };
+    jwt: async ({ token, user }) => {
+      if (user) {
+        const userWithRole = user as typeof user & { role?: Role };
 
-      if (!userWithRole.role) {
+        return {
+          ...token,
+          sub: user.id,
+          role: userWithRole.role,
+        };
+      }
+
+      return token;
+    },
+    session: async ({ session, token }) => {
+      const userId = getTokenUserId(token);
+
+      if (!userId || !token.role) {
         logger.warn(SESSION_ROLE_MISSING_MESSAGE, {
-          userId: user.id,
+          userId,
         });
 
         throw new Error(SESSION_ROLE_MISSING_MESSAGE);
@@ -125,8 +149,8 @@ export const fullAuthConfig = {
         ...session,
         user: {
           ...session.user,
-          id: user.id,
-          role: userWithRole.role,
+          id: userId,
+          role: token.role,
         },
       };
     },

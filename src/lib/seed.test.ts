@@ -152,12 +152,20 @@ describe("seedDatabase", () => {
     prisma.user.findUnique.mockResolvedValue(null);
     prisma.user.upsert
       .mockResolvedValueOnce({ id: "admin-id" })
-      .mockResolvedValueOnce({ id: "agent-id" });
+      .mockResolvedValueOnce({ id: "agent-id" })
+      .mockResolvedValueOnce({ id: "local-admin-id" })
+      .mockResolvedValueOnce({ id: "local-agent-id" });
     prisma.platformSetting.upsert.mockResolvedValue({ key: "markup_percentage" });
 
     await seedDatabase(prisma as never, bcryptClient);
 
-    expect(prisma.user.upsert).toHaveBeenCalledTimes(2);
+    expect(prisma.user.upsert).toHaveBeenCalledTimes(4);
+    expect(prisma.user.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { email: "admin.test@apolles.local" } }),
+    );
+    expect(prisma.user.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { email: "agent.test@apolles.local" } }),
+    );
     expect(prisma.platformSetting.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { key: "markup_percentage" },
@@ -176,14 +184,16 @@ describe("seedDatabase", () => {
     prisma.user.findUnique.mockResolvedValue(null);
     prisma.user.upsert
       .mockResolvedValueOnce({ id: "admin-id" })
-      .mockResolvedValueOnce({ id: "agent-id" });
+      .mockResolvedValueOnce({ id: "agent-id" })
+      .mockResolvedValueOnce({ id: "local-admin-id" })
+      .mockResolvedValueOnce({ id: "local-agent-id" });
     prisma.platformSetting.upsert.mockRejectedValue({
       code: "P2021",
       message: "The table `public.platform_settings` does not exist in the current database.",
     });
 
     await expect(seedDatabase(prisma as never, bcryptClient)).resolves.toBeUndefined();
-    expect(prisma.user.upsert).toHaveBeenCalledTimes(2);
+    expect(prisma.user.upsert).toHaveBeenCalledTimes(4);
   });
 });
 
@@ -198,7 +208,9 @@ describe("runSeed", () => {
     prisma.user.findUnique.mockResolvedValue(null);
     prisma.user.upsert
       .mockResolvedValueOnce({ id: "admin-id" })
-      .mockResolvedValueOnce({ id: "agent-id" });
+      .mockResolvedValueOnce({ id: "agent-id" })
+      .mockResolvedValueOnce({ id: "local-admin-id" })
+      .mockResolvedValueOnce({ id: "local-agent-id" });
     prisma.platformSetting.upsert.mockResolvedValue({ key: "markup_percentage" });
 
     await runSeed(prisma as never, logger);

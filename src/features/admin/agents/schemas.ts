@@ -15,10 +15,15 @@ export const createAgentInputSchema = z.object({
     .regex(/[^A-Za-z0-9]/, PASSWORD_COMPLEXITY_MESSAGE),
 });
 
-export const setAgentStatusInputSchema = z.object({
+export const setAgentStatusFormSchema = z.object({
   userId: z.string().uuid("Invalid user id"),
-  isActive: z.boolean(),
+  isActive: z.enum(["true", "false"], {
+    errorMap: () => ({ message: "Invalid account status" }),
+  }),
 });
 
+export const setAgentStatusInputSchema = setAgentStatusFormSchema;
+
 export type CreateAgentInput = z.infer<typeof createAgentInputSchema>;
+export type SetAgentStatusFormInput = z.infer<typeof setAgentStatusFormSchema>;
 export type SetAgentStatusInput = z.infer<typeof setAgentStatusInputSchema>;

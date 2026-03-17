@@ -21,6 +21,7 @@ export type AgentListItem = {
   email: string;
   isActive: boolean;
   createdAt: Date;
+  lastLoginAt: Date | null;
 };
 
 type CreateAgentResult = {
@@ -42,10 +43,10 @@ function parseCreateAgentInput(formData: FormData): CreateAgentInput {
   };
 }
 
-function parseSetAgentStatusInput(formData: FormData): SetAgentStatusInput {
+function parseSetAgentStatusInput(formData: FormData): { userId: string; isActive: string } {
   return {
     userId: String(formData.get("userId") ?? ""),
-    isActive: String(formData.get("isActive") ?? "") === "true",
+    isActive: String(formData.get("isActive") ?? ""),
   };
 }
 
@@ -67,6 +68,7 @@ export async function listAgentsAction(): Promise<ActionResult<AgentListItem[]>>
           email: true,
           isActive: true,
           createdAt: true,
+          lastLoginAt: true,
         },
         orderBy: {
           createdAt: "desc",
@@ -93,7 +95,19 @@ export async function createAgentAction(formData: FormData): Promise<ActionResul
           select: { id: true },
         });
 
-        if (existingUser) {
+        const existingUserByCaseInsensitiveEmail =
+          existingUser ??
+          (await db.user.findFirst({
+            where: {
+              email: {
+                equals: input.email,
+                mode: "insensitive",
+              },
+            },
+            select: { id: true },
+          }));
+
+        if (existingUserByCaseInsensitiveEmail) {
           throw new AppError(ErrorCodes.VALIDATION_ERROR, "An agent with this email already exists", 409);
         }
 
@@ -142,6 +156,8 @@ export async function setAgentStatusAction(
     role: "admin",
     validate: (input) => setAgentStatusInputSchema.parse(input),
     execute: async ({ session: currentSession, input }) => {
+      const nextIsActive = input.isActive === "true";
+
       if (currentSession.user.id === input.userId) {
         throw new AppError(ErrorCodes.VALIDATION_ERROR, "You cannot change your own account status", 400);
       }
@@ -167,10 +183,10 @@ export async function setAgentStatusAction(
       await db.$transaction(async (tx) => {
         await tx.user.update({
           where: { id: input.userId },
-          data: { isActive: input.isActive },
+          data: { isActive: nextIsActive },
         });
 
-        if (!input.isActive) {
+        if (!nextIsActive) {
           await tx.session.deleteMany({
             where: { userId: input.userId },
           });
@@ -181,8 +197,8 @@ export async function setAgentStatusAction(
 
       return {
         userId: input.userId,
-        isActive: input.isActive,
-        message: input.isActive ? "Agent activated" : "Agent deactivated",
+        isActive: nextIsActive,
+        message: nextIsActive ? "Agent activated" : "Agent deactivated",
       };
     },
   });

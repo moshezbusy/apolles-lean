@@ -70,8 +70,13 @@ export const fullAuthConfig = {
           email: parsed.data.email,
           password: parsed.data.password,
           findUserByEmail: async (email) =>
-            db.user.findUnique({
-              where: { email },
+            db.user.findFirst({
+              where: {
+                email: {
+                  equals: email,
+                  mode: "insensitive",
+                },
+              },
               select: {
                 id: true,
                 email: true,
@@ -89,6 +94,11 @@ export const fullAuthConfig = {
           }
           return null;
         }
+
+        await db.user.update({
+          where: { id: result.user.id },
+          data: { lastLoginAt: new Date() },
+        });
 
         return {
           id: result.user.id,

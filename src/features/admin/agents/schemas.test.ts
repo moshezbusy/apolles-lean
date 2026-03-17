@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createAgentInputSchema } from "~/features/admin/agents/schemas";
+import { createAgentInputSchema, setAgentStatusFormSchema } from "~/features/admin/agents/schemas";
 
 describe("createAgentInputSchema", () => {
   const baseInput = {
@@ -73,6 +73,33 @@ describe("createAgentInputSchema", () => {
     const result = createAgentInputSchema.safeParse({
       ...baseInput,
       name: "",
+    });
+
+    expect(result.success).toBe(false);
+  });
+});
+
+describe("setAgentStatusFormSchema", () => {
+  it("accepts explicit boolean-like string values", () => {
+    expect(
+      setAgentStatusFormSchema.safeParse({
+        userId: crypto.randomUUID(),
+        isActive: "true",
+      }).success,
+    ).toBe(true);
+
+    expect(
+      setAgentStatusFormSchema.safeParse({
+        userId: crypto.randomUUID(),
+        isActive: "false",
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects unexpected status values", () => {
+    const result = setAgentStatusFormSchema.safeParse({
+      userId: crypto.randomUUID(),
+      isActive: "maybe",
     });
 
     expect(result.success).toBe(false);

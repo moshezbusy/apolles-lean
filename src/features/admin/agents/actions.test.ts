@@ -16,14 +16,15 @@ vi.mock("~/lib/auth", () => ({
 }));
 
 vi.mock("~/lib/db", () => ({
-    db: {
-      $transaction: vi.fn(),
-      session: {
-        deleteMany: vi.fn(),
-      },
-      user: {
-        findMany: vi.fn(),
-        findUnique: vi.fn(),
+  db: {
+    $transaction: vi.fn(),
+    session: {
+      deleteMany: vi.fn(),
+    },
+    user: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
     },
@@ -100,6 +101,7 @@ describe("admin agent actions", () => {
         email: "agent1@example.com",
         isActive: true,
         createdAt: new Date("2026-03-10T10:00:00Z"),
+        lastLoginAt: new Date("2026-03-16T09:00:00Z"),
       },
     ] as never);
 
@@ -114,6 +116,7 @@ describe("admin agent actions", () => {
           email: "agent1@example.com",
           isActive: true,
           createdAt: new Date("2026-03-10T10:00:00Z"),
+          lastLoginAt: new Date("2026-03-16T09:00:00Z"),
         },
       ],
     });
@@ -125,6 +128,7 @@ describe("admin agent actions", () => {
         email: true,
         isActive: true,
         createdAt: true,
+        lastLoginAt: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -148,9 +152,38 @@ describe("admin agent actions", () => {
     }
   });
 
+  it("returns clear duplicate-email error for existing mixed-case email", async () => {
+    vi.mocked(getValidatedSession).mockResolvedValue(createAdminSession() as never);
+    vi.mocked(db.user.findUnique).mockResolvedValue(null as never);
+    vi.mocked(db.user.findFirst).mockResolvedValue({ id: crypto.randomUUID() } as never);
+
+    const formData = new FormData();
+    formData.set("name", "Agent One");
+    formData.set("email", "Agent1@Example.com");
+    formData.set("password", "Password123!!");
+
+    const result = await createAgentAction(formData);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe(ErrorCodes.VALIDATION_ERROR);
+      expect(result.error.message).toContain("already exists");
+    }
+    expect(db.user.findFirst).toHaveBeenCalledWith({
+      where: {
+        email: {
+          equals: "agent1@example.com",
+          mode: "insensitive",
+        },
+      },
+      select: { id: true },
+    });
+  });
+
   it("creates an active AGENT user with bcrypt hash", async () => {
     vi.mocked(getValidatedSession).mockResolvedValue(createAdminSession() as never);
     vi.mocked(db.user.findUnique).mockResolvedValue(null as never);
+    vi.mocked(db.user.findFirst).mockResolvedValue(null as never);
     vi.mocked(db.user.create).mockResolvedValue({ id: crypto.randomUUID() } as never);
 
     const formData = new FormData();
@@ -174,6 +207,7 @@ describe("admin agent actions", () => {
   it("returns a typed duplicate-email error when create hits a unique constraint race", async () => {
     vi.mocked(getValidatedSession).mockResolvedValue(createAdminSession() as never);
     vi.mocked(db.user.findUnique).mockResolvedValue(null as never);
+    vi.mocked(db.user.findFirst).mockResolvedValue(null as never);
     vi.mocked(db.user.create).mockRejectedValue(
       new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
         code: "P2002",
@@ -266,5 +300,24 @@ describe("admin agent actions", () => {
       expect(result.error.code).toBe(ErrorCodes.VALIDATION_ERROR);
       expect(result.error.message).toContain("cannot change your own");
     }
+  });
+
+  it("rejects invalid account status values instead of coercing them", async () => {
+    const admin = createAdminSession();
+    vi.mocked(getValidatedSession).mockResolvedValue(admin as never);
+
+    const formData = new FormData();
+    formData.set("userId", crypto.randomUUID());
+    formData.set("isActive", "definitely-not-a-boolean");
+
+    const result = await setAgentStatusAction(formData);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.code).toBe(ErrorCodes.VALIDATION_ERROR);
+      expect(result.error.message).toBe("Invalid account status");
+    }
+    expect(db.user.findUnique).not.toHaveBeenCalled();
+    expect(db.user.update).not.toHaveBeenCalled();
   });
 });

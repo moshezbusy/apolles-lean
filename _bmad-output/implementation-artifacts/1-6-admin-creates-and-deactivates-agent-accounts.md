@@ -156,6 +156,7 @@ openai/gpt-5.3-codex
 - Validation passed: `pnpm test` (50/50), `pnpm build`, `pnpm typecheck`.
 - Code review follow-up fixes applied: agent listing is now restricted to AGENT role only, list action coverage added, password schema coverage expanded, and accessibility/UX improvements applied to the create-agent form.
 - Review fix pass applied: deactivation now revokes active DB sessions, duplicate-email races now return a typed validation error, and the create-agent form now links field errors for assistive tech and focuses the first invalid field on submit.
+- Follow-up review fix pass applied: invalid status payloads now fail validation instead of deactivating accounts, agent email checks and login lookup are case-insensitive, Platform Settings now shows Last Login, and UI coverage now exercises the real panel behavior.
 
 ### File List
 
@@ -164,9 +165,12 @@ openai/gpt-5.3-codex
 - apolles/src/features/admin/agents/actions.test.ts
 - apolles/src/features/admin/agents/agent-management-panel.tsx
 - apolles/src/features/admin/agents/agent-management-form.ts
-- apolles/src/features/admin/agents/agent-management-panel.test.ts
+- apolles/src/features/admin/agents/agent-management-panel.test.tsx
 - apolles/src/features/admin/agents/schemas.ts
 - apolles/src/features/admin/agents/schemas.test.ts
+- apolles/src/lib/auth.ts
+- apolles/prisma/schema.prisma
+- apolles/prisma/migrations/20260317130500_add_user_last_login_at/migration.sql
 - _bmad-output/implementation-artifacts/1-6-admin-creates-and-deactivates-agent-accounts.md
 
 ### Senior Developer Review (AI)
@@ -197,6 +201,19 @@ openai/gpt-5.3-codex
   - `pnpm test -- src/features/admin/agents/actions.test.ts src/features/admin/agents/schemas.test.ts src/features/admin/agents/agent-management-panel.test.ts src/app/login/actions.test.ts src/lib/auth-credentials.test.ts src/lib/authorize.test.ts` passed
   - `pnpm typecheck` passed
   - `pnpm build` passed
+- Reviewer: OpenCode
+- Date: 2026-03-17
+- Outcome: Approved after follow-up fix pass
+- Findings fixed:
+  - HIGH: Invalid `isActive` form payloads now return a validation error instead of coercing to deactivation.
+  - HIGH: Agent creation and login now handle email matching case-insensitively.
+  - MEDIUM: Platform Settings agent table now includes Last Login.
+  - MEDIUM: Panel tests now cover real invalid-submit focus behavior, accessibility wiring, and status-toggle submission.
+  - MEDIUM: Story file list now matches the updated implementation set.
+- Verification:
+  - `pnpm prisma generate` passed
+  - `pnpm test -- src/features/admin/agents/actions.test.ts src/features/admin/agents/schemas.test.ts src/features/admin/agents/agent-management-panel.test.tsx src/lib/auth.test.ts src/lib/auth-credentials.test.ts src/app/login/actions.test.ts` passed
+  - `pnpm typecheck` passed
 
 ## Change Log
 
@@ -204,3 +221,4 @@ openai/gpt-5.3-codex
 - 2026-03-12: Implemented Story 1.6 admin agent management with validation, role-protected actions, UI controls, and tests; moved to review.
 - 2026-03-12: Completed adversarial code review fixes (HIGH/MEDIUM), re-ran quality gates, and moved story to done.
 - 2026-03-14: Completed follow-up review fixes for session revocation, duplicate-email race handling, and create-agent accessibility/invalid-submit behavior; re-ran tests, typecheck, and build.
+- 2026-03-17: Completed code-review follow-up fixes for strict status validation, case-insensitive email handling, Last Login visibility, Prisma schema support, and stronger panel test coverage.

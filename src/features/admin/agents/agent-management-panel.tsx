@@ -42,6 +42,14 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
   day: "numeric",
 });
 
+function formatDate(value: Date | string | null) {
+  if (!value) {
+    return "Never";
+  }
+
+  return DATE_FORMATTER.format(new Date(value));
+}
+
 const INITIAL_FORM_VALUES: CreateAgentFormValues = {
   name: "",
   email: "",
@@ -284,6 +292,7 @@ export function AgentManagementPanel({ agents }: Props) {
                 <th className="px-6 py-3 text-left font-semibold text-text-secondary">Email</th>
                 <th className="px-6 py-3 text-left font-semibold text-text-secondary">Status</th>
                 <th className="px-6 py-3 text-left font-semibold text-text-secondary">Date created</th>
+                <th className="px-6 py-3 text-left font-semibold text-text-secondary">Last login</th>
                 <th className="px-6 py-3 text-right font-semibold text-text-secondary">Actions</th>
               </tr>
             </thead>
@@ -301,7 +310,10 @@ export function AgentManagementPanel({ agents }: Props) {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-text-secondary">
-                      {DATE_FORMATTER.format(new Date(agent.createdAt))}
+                      {formatDate(agent.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 text-text-secondary">
+                      {formatDate(agent.lastLoginAt)}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <Button

@@ -162,6 +162,30 @@ export async function seedDatabase(prisma: SeedDbClient, bcryptClient: BcryptLik
     bcryptClient,
   );
 
+  if (process.env.NODE_ENV !== "production") {
+    await upsertUser(
+      prisma,
+      {
+        email: "admin.test@apolles.local",
+        name: "Admin Test",
+        role: Role.ADMIN,
+        password: "Admin123!",
+      },
+      bcryptClient,
+    );
+
+    await upsertUser(
+      prisma,
+      {
+        email: "agent.test@apolles.local",
+        name: "Agent Test",
+        role: Role.AGENT,
+        password: "Agent123!",
+      },
+      bcryptClient,
+    );
+  }
+
   try {
     await prisma.platformSetting.upsert({
       where: { key: "markup_percentage" },

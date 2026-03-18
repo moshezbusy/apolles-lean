@@ -1,6 +1,6 @@
 # Story 1.4: Dashboard Shell with Sidebar Navigation
 
-Status: done
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -176,6 +176,11 @@ openai/gpt-5.3-codex
 - `pnpm test` (adversarial remediation)
 - `pnpm build` (adversarial remediation)
 - `pnpm typecheck` (adversarial remediation)
+- focused remediation scope mapping: Story 1.4 shell/navigation vs Story 2.6 search-page UI
+- `pnpm test --run src/components/layout/app-shell.test.tsx src/components/layout/sidebar.test.tsx src/components/layout/navigation-config.test.ts src/features/reservations/reservation-visibility.test.ts src/app/(app)/reservations/page.test.tsx src/app/(app)/admin/bookings/page.test.tsx src/app/(app)/layout.test.tsx`
+- `pnpm test`
+- `pnpm typecheck`
+- `pnpm build`
 
 ### Completion Notes List
 
@@ -201,19 +206,22 @@ openai/gpt-5.3-codex
 - Review remediation: added jsdom sidebar interaction coverage for mobile hamburger toggling and persisted desktop collapse state.
 - Review remediation: synchronized story task wording and file notes with the current `admin/settings` route ownership.
 - Review remediation: removed Prisma-backed session validation from middleware, restored validated-session redirects to server `auth()` entry points, and replaced the auth-routing denylist with an explicit public-route registry that keeps unknown routes protected by default.
+- Reopened Story 1.4 for a focused shell remediation pass: expanded the authenticated shell to fill the viewport, made the desktop sidebar height stable, and separated Reservations from All Bookings so admin users no longer collide into the admin all-bookings route when selecting Reservations.
+- Classified the remaining sparse Search page composition as Story 2.6 UI follow-up work rather than silently folding it into Story 1.4.
 
 ### File List
 
 - Cumulative story file list covering the original implementation plus review remediations. Current review remediation changes are reflected in the git worktree; earlier implementation files may already be committed.
 - Current review worktree changes (git-visible):
-  - src/app/(app)/layout.test.tsx
-  - src/app/(app)/layout.tsx
-  - src/app/login/page.test.tsx
-  - src/app/login/page.tsx
-  - src/lib/auth-routing.test.ts
-  - src/lib/auth-routing.ts
-  - src/middleware.test.ts
-  - src/middleware.ts
+  - src/app/(app)/reservations/page.test.tsx
+  - src/app/(app)/reservations/page.tsx
+  - src/components/layout/app-shell.test.tsx
+  - src/components/layout/app-shell.tsx
+  - src/components/layout/navigation-config.test.ts
+  - src/components/layout/sidebar.test.tsx
+  - src/components/layout/sidebar.tsx
+  - src/features/reservations/reservation-visibility.test.ts
+  - src/features/reservations/reservation-visibility.ts
 - Current review artifact updates outside git-visible diff in this repo configuration:
   - _bmad-output/implementation-artifacts/1-4-dashboard-shell-with-sidebar-navigation.md
 - _bmad-output/implementation-artifacts/1-4-dashboard-shell-with-sidebar-navigation.md
@@ -313,3 +321,4 @@ openai/gpt-5.3-codex
 - 2026-03-16: Completed follow-up review remediation by switching middleware auth protection to public-route detection, adding shell landmark/skip-link regression coverage, normalizing story paths to repo-relative form, and clarifying cumulative file-list provenance; story remains done.
 - 2026-03-16: Ran a full verification rerun for Story 1.4, tightened AC6 test coverage with explicit skip-link/focus-token assertions, and expanded story traceability notes for current-worktree review evidence.
 - 2026-03-16: Reopened the story to review for remediation, removed Prisma-backed middleware session validation, restored validated-session redirects to server `auth()` entry points, replaced the implicit auth-routing denylist with an explicit public-route registry plus future-route tests, corrected Task 4 and architecture notes to match the current stack, reran validation, and returned the story to done.
+- 2026-03-18: Reopened Story 1.4 for authenticated shell remediation, fixed full-viewport shell/sidebar behavior, separated Reservations from admin All Bookings routing, added regression coverage for route separation and shell sizing, reran validation, and moved the story to review.

@@ -170,7 +170,7 @@ export function Sidebar({ userName, role }: SidebarProps) {
       </header>
 
       <aside
-        className={`hidden flex-col bg-dark text-white transition-[width] duration-200 md:flex ${
+        className={`hidden shrink-0 flex-col bg-dark text-white transition-[width] duration-200 md:sticky md:top-0 md:flex md:h-screen ${
           collapsed ? "w-16" : "w-60"
         }`}
         aria-label="Sidebar"
@@ -205,7 +205,10 @@ export function Sidebar({ userName, role }: SidebarProps) {
             </button>
           )}
         </header>
-        <nav className={`flex-1 py-4 ${collapsed ? "px-2" : "px-3"}`} aria-label="Primary navigation">
+        <nav
+          className={`flex-1 overflow-y-auto py-4 ${collapsed ? "px-2" : "px-3"}`}
+          aria-label="Primary navigation"
+        >
           <NavSections role={role} pathname={pathname} collapsed={collapsed} />
         </nav>
         <div className={`border-t border-white/20 py-4 ${collapsed ? "px-2" : "px-4"}`}>

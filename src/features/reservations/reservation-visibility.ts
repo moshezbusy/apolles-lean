@@ -1,11 +1,4 @@
-import {
-  type BookingScope,
-  buildBookingScope,
-  requireAuth,
-  requireRole,
-  type SessionLike,
-} from "~/lib/authorize";
-import { AppError, ErrorCodes } from "~/lib/errors";
+import { requireAuth, requireRole, type SessionLike } from "~/lib/authorize";
 
 export type ReservationVisibilityRecord = {
   id: string;
@@ -47,30 +40,18 @@ const reservationVisibilityFixtures: ReservationVisibilityRecord[] = [
   },
 ];
 
-async function queryVisibleReservations(scope: BookingScope): Promise<ReservationVisibilityRecord[]> {
-  if (scope.kind === "agent") {
-    return reservationVisibilityFixtures.filter((reservation) => reservation.agentId === scope.where.agentId);
-  }
-
-  return reservationVisibilityFixtures;
+async function queryReservationsForAgent(agentId: string): Promise<ReservationVisibilityRecord[]> {
+  return reservationVisibilityFixtures.filter((reservation) => reservation.agentId === agentId);
 }
 
 export async function listVisibleReservations(session: SessionLike): Promise<ReservationVisibilityRecord[]> {
   requireAuth(session);
 
-  if (session.user.role !== "AGENT") {
-    throw new AppError(
-      ErrorCodes.NOT_AUTHORIZED,
-      "Reservations is an agent-only workspace. Admins should use /admin/bookings.",
-    );
-  }
-
-  const scope = buildBookingScope(session);
-  return queryVisibleReservations(scope);
+  return queryReservationsForAgent(session.user.id);
 }
 
 export async function listAdminReservations(session: SessionLike): Promise<ReservationVisibilityRecord[]> {
   requireRole(session, "admin");
 
-  return queryVisibleReservations({ kind: "admin" });
+  return reservationVisibilityFixtures;
 }

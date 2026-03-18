@@ -47,6 +47,17 @@ describe("ReservationsPage", () => {
     expect(redirectMock).toHaveBeenCalledWith("/login?callbackUrl=%2Freservations%3Fpage%3D2");
   });
 
+  it("redirects malformed sessions to login instead of rendering an internal error", async () => {
+    authMock.mockResolvedValue({
+      user: {
+        role: "ADMIN",
+      },
+    });
+
+    await expect(ReservationsPage()).rejects.toThrow("REDIRECT:/login?callbackUrl=%2Freservations%3Fpage%3D2");
+    expect(redirectMock).toHaveBeenCalledWith("/login?callbackUrl=%2Freservations%3Fpage%3D2");
+  });
+
   it("renders only the authenticated agent's reservations", async () => {
     authMock.mockResolvedValue({
       user: {
@@ -61,10 +72,10 @@ describe("ReservationsPage", () => {
     expect(html).toContain("APL-1001");
     expect(html).toContain("APL-1002");
     expect(html).not.toContain("APL-2001");
-    expect(html).toContain("Agent-only reservations workspace");
+    expect(html).toContain("signed-in reservations workspace");
   });
 
-  it("redirects admin users to the admin bookings surface", async () => {
+  it("keeps admin users on Reservations without redirecting them into All Bookings", async () => {
     authMock.mockResolvedValue({
       user: {
         id: "admin-1",
@@ -72,7 +83,11 @@ describe("ReservationsPage", () => {
       },
     });
 
-    await expect(ReservationsPage()).rejects.toThrow("REDIRECT:/admin/bookings");
-    expect(redirectMock).toHaveBeenCalledWith("/admin/bookings");
+    const result = await ReservationsPage();
+    const html = renderToStaticMarkup(result);
+
+    expect(redirectMock).not.toHaveBeenCalled();
+    expect(html).toContain("separate from the admin all-bookings view");
+    expect(html).toContain("No reservations are linked to this account yet");
   });
 });

@@ -138,4 +138,21 @@ describe("Sidebar", () => {
     expect(window.localStorage.getItem("apolles.sidebar.collapsed")).toBe("true");
     expect(desktopAside?.className).toContain("w-16");
   });
+
+  it("keeps Reservations and All Bookings as separate active destinations for admins", () => {
+    pathnameMock.mockReturnValue("/reservations");
+
+    renderSidebar();
+
+    const reservationsLink = container.querySelector<HTMLAnchorElement>('a[href="/reservations"]');
+    const allBookingsLink = container.querySelector<HTMLAnchorElement>('a[href="/admin/bookings"]');
+    const desktopAside = container.querySelector("aside[aria-label='Sidebar']");
+
+    expect(desktopAside?.className).toContain("md:h-screen");
+    expect(desktopAside?.className).toContain("shrink-0");
+    expect(reservationsLink?.className).toContain("border-primary");
+    expect(reservationsLink?.className).toContain("text-primary");
+    expect(allBookingsLink?.className).toContain("border-transparent");
+    expect(allBookingsLink?.className).toContain("text-white");
+  });
 });

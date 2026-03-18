@@ -42,4 +42,9 @@ describe("isNavItemActive", () => {
   it("does not match sibling pathname", () => {
     expect(isNavItemActive("/admin/settings", "/admin/bookings")).toBe(false);
   });
+
+  it("keeps reservations distinct from admin bookings", () => {
+    expect(isNavItemActive("/reservations", "/admin/bookings")).toBe(false);
+    expect(isNavItemActive("/admin/bookings", "/reservations")).toBe(false);
+  });
 });

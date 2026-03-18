@@ -20,9 +20,9 @@ export function AppShell({ userName, role, children }: AppShellProps) {
         Skip to content
       </a>
 
-      <div className="md:flex">
+      <div className="flex min-h-screen w-full flex-col md:flex-row">
         <Sidebar userName={userName} role={role} />
-        <main id="main-content" tabIndex={-1} className="flex-1 p-4 md:p-8">
+        <main id="main-content" tabIndex={-1} className="min-w-0 flex-1 p-4 md:p-8">
           {children}
         </main>
       </div>

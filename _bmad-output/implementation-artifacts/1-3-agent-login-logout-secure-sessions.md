@@ -100,6 +100,22 @@ openai/gpt-5.3-codex
 - `pnpm build`
 - `pnpm typecheck`
 - `pnpm vitest run src/lib/auth.test.ts` (RED: credentials/session strategy regression reproduced in unit coverage)
+- `pnpm vitest run src/lib/auth.test.ts src/app/login/actions.test.ts src/middleware.test.ts`
+- `curl -i http://localhost:3002/api/auth/providers`
+- `curl -i http://localhost:3002/api/auth/csrf`
+- `curl -i http://localhost:3003/api/auth/providers`
+- `curl -i http://localhost:3003/api/auth/csrf`
+- `curl -s -c /tmp/apolles-story13-agent.cookies http://localhost:3003/api/auth/csrf`
+- `curl -i -b /tmp/apolles-story13-agent.cookies -c /tmp/apolles-story13-agent.cookies -X POST http://localhost:3003/api/auth/callback/credentials ... agent.test@apolles.local / Agent123!`
+- `curl -b /tmp/apolles-story13-agent.cookies http://localhost:3003/api/auth/session`
+- `curl -b /tmp/apolles-story13-agent.cookies http://localhost:3003/search`
+- `curl -i -b /tmp/apolles-story13-agent.cookies -c /tmp/apolles-story13-agent.cookies -X POST http://localhost:3003/api/auth/signout ...`
+- `curl -b /tmp/apolles-story13-agent.cookies http://localhost:3003/api/auth/session` (post-logout)
+- `curl -b /tmp/apolles-story13-agent.cookies http://localhost:3003/search` (post-logout redirect check)
+- `pnpm vitest run src/lib/auth.test.ts`
+- `pnpm test`
+- `pnpm build`
+- `pnpm typecheck`
 - `SEED_ADMIN_PASSWORD="Admin123!" SEED_AGENT_PASSWORD="Agent123!" pnpm db:seed`
 - `pnpm vitest run src/lib/auth.test.ts src/app/login/actions.test.ts`
 - `pnpm vitest run src/lib/auth.test.ts src/app/login/actions.test.ts src/app/login/page.test.tsx src/middleware.test.ts "src/app/(app)/layout.test.tsx" "src/app/(app)/admin/layout.test.tsx" src/features/admin/agents/actions.test.ts`
@@ -127,6 +143,7 @@ openai/gpt-5.3-codex
 - Reconcile Story 1.3 review follow-ups by tightening auth/session invariants, strengthening middleware session checks, and refreshing the login page presentation to match the Apolles visual treatment.
 - Add direct tests for auth configuration, middleware behavior, and rendered login callback handling before updating implementation details.
 - Re-run targeted and full quality gates, then refresh the story audit trail so File List, Completion Notes, and Change Log reflect the actual post-review state.
+- Validate the approved 2026-03-20 correction against the live app, keeping the credentials flow aligned to JWT-backed sessions while preserving secure cookies, logout, and 30-minute expiry behavior.
 
 ### Completion Notes List
 
@@ -156,16 +173,16 @@ openai/gpt-5.3-codex
 - Validation passed: `pnpm test` (193/193), `pnpm typecheck`.
 - 2026-03-17: Fixed the current local credentials-login regression by switching the credentials-only Auth.js setup from database sessions to JWT sessions, adding explicit JWT/session role propagation, and simplifying logout to the matching Auth.js sign-out path.
 - 2026-03-17: Added regression coverage proving credentials sign-in requires JWT strategy in this app shape, re-seeded local test users, and verified admin/agent login plus invalid-password rejection through the running app's Auth.js endpoints.
+- 2026-03-20: Re-executed the BMAD dev-story workflow for the approved auth/session correction and verified the live Auth.js endpoints no longer 500 on `/api/auth/providers` or `/api/auth/csrf`.
+- 2026-03-20: Confirmed end-to-end credentials login for `agent.test@apolles.local`, verified `/search` opens with the authenticated session, and verified logout clears the session so protected routes redirect back to login.
+- 2026-03-20: Re-validated the corrected JWT-backed session strategy remains aligned with the approved remediation, including secure cookie flags and 30-minute session expiry configuration.
+- Validation passed: `pnpm test` (227/227), `pnpm build`, `pnpm typecheck`.
 
 ### File List
 
 - _bmad-output/implementation-artifacts/1-3-agent-login-logout-secure-sessions.md
-- _bmad-output/implementation-artifacts/sprint-status.yaml
-- apolles/src/app/login/actions.test.ts
-- apolles/src/app/login/actions.ts
-- apolles/src/lib/auth.test.ts
-- apolles/src/lib/auth.ts
-- apolles/src/lib/seed.test.ts
+- src/lib/auth.test.ts
+- src/lib/auth.ts
 
 ### Git Context Notes
 
@@ -308,3 +325,4 @@ All 9 Acceptance Criteria verified as IMPLEMENTED after fixes. Validation re-run
 - 2026-03-16: Re-ran the BMAD dev-story completion workflow, re-validated Story 1.3 with targeted auth tests plus the full regression suite, and moved the story back to review.
 - 2026-03-16: Eighth review pass — removed Prisma-backed auth work from edge middleware, preserved callback context for dotted protected routes, downgraded malformed session payloads to unauthenticated instead of 500s, refreshed the File List, and set status to done.
 - 2026-03-17: Focused auth remediation — replaced the incompatible credentials+database-session Auth.js configuration with JWT sessions, updated auth/logout regression coverage, refreshed local seed-user verification, and set status to review.
+- 2026-03-20: BMAD dev-story correction pass — re-validated the approved JWT-backed auth/session remediation in code and against the live app, fixed the `src/lib/auth.test.ts` type-safe provider call, refreshed story evidence, and kept the story in review.

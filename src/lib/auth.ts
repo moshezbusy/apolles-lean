@@ -1,6 +1,7 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import NextAuth, { type DefaultSession } from "next-auth";
+import { AuthError } from "next-auth";
 import { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import type { JWT } from "next-auth/jwt";
@@ -37,6 +38,58 @@ class InactiveAccountError extends CredentialsSignin {
 }
 
 const SESSION_ROLE_MISSING_MESSAGE = "Session callback: role missing on user payload";
+const RECOVERABLE_AUTH_ERROR_TYPES = new Set(["JWTSessionError", "SessionTokenError"]);
+const LAST_LOGIN_COLUMN_NAME = "last_login_at";
+
+function shouldTrustAuthHost() {
+  if (process.env.NODE_ENV !== "production") {
+    return true;
+  }
+
+  try {
+    const authUrl = new URL(env.NEXTAUTH_URL);
+    return authUrl.hostname === "localhost" || authUrl.hostname === "127.0.0.1";
+  } catch {
+    return false;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isMissingLastLoginColumnError(error: unknown) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2022") {
+    return false;
+  }
+
+  const meta = isRecord(error.meta) ? error.meta : undefined;
+  const column = typeof meta?.column === "string" ? meta.column.toLowerCase() : undefined;
+
+  return (
+    column === LAST_LOGIN_COLUMN_NAME ||
+    error.message.toLowerCase().includes(LAST_LOGIN_COLUMN_NAME)
+  );
+}
+
+async function updateLastLoginAt(userId: string) {
+  try {
+    await db.user.update({
+      where: { id: userId },
+      data: { lastLoginAt: new Date() },
+    });
+  } catch (error) {
+    if (isMissingLastLoginColumnError(error)) {
+      logger.warn("Skipping last-login audit because the database schema is outdated", {
+        userId,
+        column: LAST_LOGIN_COLUMN_NAME,
+      });
+      return;
+    }
+
+    throw error;
+  }
+}
 
 function getTokenUserId(token: JWT) {
   return typeof token.sub === "string" && token.sub.length > 0 ? token.sub : null;
@@ -45,6 +98,7 @@ function getTokenUserId(token: JWT) {
 export const fullAuthConfig = {
   ...authConfig,
   secret: env.NEXTAUTH_SECRET,
+  trustHost: shouldTrustAuthHost(),
   adapter: PrismaAdapter(db),
   session: {
     strategy: "jwt",
@@ -106,10 +160,7 @@ export const fullAuthConfig = {
           return null;
         }
 
-        await db.user.update({
-          where: { id: result.user.id },
-          data: { lastLoginAt: new Date() },
-        });
+        await updateLastLoginAt(result.user.id);
 
         return {
           id: result.user.id,
@@ -164,7 +215,10 @@ export async function getValidatedSession() {
   try {
     return await auth();
   } catch (error) {
-    if (error instanceof Error && error.message === SESSION_ROLE_MISSING_MESSAGE) {
+    if (
+      (error instanceof Error && error.message === SESSION_ROLE_MISSING_MESSAGE) ||
+      (error instanceof AuthError && RECOVERABLE_AUTH_ERROR_TYPES.has(error.type))
+    ) {
       return null;
     }
 

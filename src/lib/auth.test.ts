@@ -1,7 +1,15 @@
-import { Role } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
+import bcrypt from "bcryptjs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { loggerWarnMock, nextAuthMock } = vi.hoisted(() => ({
+const { dbMock, loggerWarnMock, nextAuthMock } = vi.hoisted(() => ({
+  dbMock: {
+    user: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
+  },
   loggerWarnMock: vi.fn(),
   nextAuthMock: vi.fn(() => ({
     handlers: {},
@@ -17,6 +25,14 @@ vi.mock("@auth/prisma-adapter", () => ({
 
 vi.mock("next-auth", () => ({
   default: nextAuthMock,
+  AuthError: class AuthError extends Error {
+    type: string;
+
+    constructor(type = "AuthError") {
+      super(type);
+      this.type = type;
+    }
+  },
   CredentialsSignin: class CredentialsSignin extends Error {
     code = "credentials";
   },
@@ -27,11 +43,7 @@ vi.mock("next-auth/providers/credentials", () => ({
 }));
 
 vi.mock("~/lib/db", () => ({
-  db: {
-    user: {
-      findUnique: vi.fn(),
-    },
-  },
+  db: dbMock,
 }));
 
 vi.mock("~/env", () => ({
@@ -46,11 +58,15 @@ vi.mock("~/lib/logger", () => ({
   },
 }));
 
+import { AuthError } from "next-auth";
+
 import { auth, fullAuthConfig, getValidatedSession } from "~/lib/auth";
 
 describe("fullAuthConfig", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    dbMock.user.findFirst.mockResolvedValue(null);
+    dbMock.user.update.mockResolvedValue(undefined);
   });
 
   it("uses JWT sessions so credentials sign-in is supported", () => {
@@ -59,6 +75,10 @@ describe("fullAuthConfig", () => {
       maxAge: 60 * 30,
       updateAge: 5 * 60,
     });
+  });
+
+  it("trusts localhost hosts so local auth works on started servers", () => {
+    expect(fullAuthConfig.trustHost).toBe(true);
   });
 
   it("stores the authenticated user identity on the JWT payload", async () => {
@@ -134,6 +154,14 @@ describe("fullAuthConfig", () => {
     await expect(getValidatedSession()).resolves.toBeNull();
   });
 
+  it("treats invalid local session tokens as unauthenticated instead of crashing callers", async () => {
+    const authError = new AuthError("JWTSessionError");
+
+    vi.mocked(auth).mockRejectedValue(authError);
+
+    await expect(getValidatedSession()).resolves.toBeNull();
+  });
+
   it("returns the validated session when the payload is well-formed", async () => {
     vi.mocked(auth).mockResolvedValue({
       user: {
@@ -150,5 +178,50 @@ describe("fullAuthConfig", () => {
         role: Role.AGENT,
       },
     });
+  });
+
+  it("allows credentials sign-in when the local database is missing last_login_at", async () => {
+    const provider = fullAuthConfig.providers[0];
+
+    if (!provider || typeof provider.authorize !== "function") {
+      throw new Error("Expected credentials provider to expose authorize");
+    }
+
+    dbMock.user.findFirst.mockResolvedValue({
+      id: "user-1",
+      email: "agent@example.com",
+      name: "Agent Example",
+      passwordHash: await bcrypt.hash("Agent123!", 4),
+      isActive: true,
+      role: Role.AGENT,
+    });
+    dbMock.user.update.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError("Missing last_login_at column", {
+        code: "P2022",
+        clientVersion: "6.6.0",
+        meta: { column: "last_login_at" },
+      }),
+    );
+
+    await expect(
+      provider.authorize?.(
+        {
+          email: "agent@example.com",
+          password: "Agent123!",
+        },
+        new Request("http://localhost/api/auth/callback/credentials"),
+      ),
+    ).resolves.toMatchObject({
+      id: "user-1",
+      role: Role.AGENT,
+    });
+
+    expect(loggerWarnMock).toHaveBeenCalledWith(
+      "Skipping last-login audit because the database schema is outdated",
+      {
+        userId: "user-1",
+        column: "last_login_at",
+      },
+    );
   });
 });

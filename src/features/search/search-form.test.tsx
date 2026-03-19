@@ -66,7 +66,7 @@ describe("SearchForm", () => {
   });
 
   function getInput(id: string): HTMLInputElement {
-    const element = container.querySelector<HTMLInputElement>(`[id="${id}"]`);
+    const element = document.querySelector<HTMLInputElement>(`[id="${id}"]`);
     if (!element) {
       throw new Error(`Missing input: ${id}`);
     }
@@ -94,6 +94,20 @@ describe("SearchForm", () => {
     });
   }
 
+  async function openTravelersEditor() {
+    const trigger = [...container.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("guest") || button.textContent?.includes("guests"),
+    );
+
+    if (!trigger) {
+      throw new Error("Missing travelers trigger");
+    }
+
+    await act(async () => {
+      trigger.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+  }
+
   async function blurInput(id: string) {
     const input = getInput(id);
 
@@ -112,6 +126,10 @@ describe("SearchForm", () => {
   }
 
   it("renders dynamic child age fields and shows blur validation", async () => {
+    expect(container.textContent).toContain("City, area, landmark, or hotel name.");
+    expect(container.textContent).toContain("Awaiting search");
+
+    await openTravelersEditor();
     await setInputValue("children", "2");
 
     expect(container.querySelector('[id="childrenAges.0"]')).not.toBeNull();
@@ -190,6 +208,7 @@ describe("SearchForm", () => {
     });
 
     expect(container.textContent).toContain("Hotel Roma");
+    expect(container.textContent).toContain("1 hotel");
     expect(container.textContent).toMatch(/Source [AB]/);
   });
 

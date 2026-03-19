@@ -57,7 +57,7 @@ development_status:
   2-3-expedia-rapid-api-v3-search-adapter: in-progress
   2-4-platform-markup-service: in-progress
   2-5-search-service-with-parallel-supplier-calls: done
-  2-6-search-form-ui: done
+  2-6-search-form-ui: review
   epic-2-retrospective: optional
 
   # Epic 3: Results Display, Room Details & Source Indicators

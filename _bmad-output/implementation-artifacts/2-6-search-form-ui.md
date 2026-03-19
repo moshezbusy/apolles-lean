@@ -1,6 +1,6 @@
 # Story 2.6: Search Form UI
 
-Status: done
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -190,6 +190,9 @@ openai/gpt-5.4
 - Added results state model and rendering components in `apolles/src/features/search/search-form-state.ts`, `apolles/src/features/search/search-results-section.tsx`, `apolles/src/features/search/search-results-skeleton.tsx`, and `apolles/src/features/search/hotel-result-card.tsx`
 - Added new shadcn-style primitives in `apolles/src/components/ui/popover.tsx` and `apolles/src/components/ui/calendar.tsx` plus calendar dependency support in `apolles/package.json`
 - Validation run log: `pnpm test --run src/features/search/search-form-schema.test.ts src/features/search/search-form-state.test.ts`, `pnpm test --run`, `pnpm typecheck`, and `pnpm build`
+- Follow-up UI remediation pass for the authenticated Search home page focused on Story 2.6 composition, CTA strength, and empty/results-state polish
+- Full redesign pass for Story 2.6 shifting the Search page away from a stacked internal-form layout into a compact horizontal travel-style search experience
+- Refined Story 2.6 toward a reference-style booking search bar by compressing travelers into a summary trigger with secondary controls in a popover and tightening search-row density further
 
 ### Implementation Plan
 
@@ -215,6 +218,11 @@ openai/gpt-5.4
 - Completed verification gates: targeted tests, full `pnpm test --run`, `pnpm typecheck`, and `pnpm build`.
 - Fixed code review gaps by switching the date-picker popover to the Base UI primitive, preventing stale blur validation after calendar selection, and replacing agent-facing supplier names with neutral source labels.
 - Added jsdom-backed `SearchForm` integration tests covering dynamic child age fields, blur validation, first-invalid focus/scroll, loading skeletons, success rendering, empty state, and error state.
+- Upgraded the Search home page composition with a denser form structure, stronger destination-first hierarchy, a dedicated CTA summary rail, and a more intentional results workspace without expanding product scope.
+- Added a small UI regression assertion to keep the new search summary rail and results-state header present in the authenticated search experience.
+- Replaced the stacked multi-panel search layout with a horizontal hero search bar, compact traveler controls, lighter secondary chips, and a more connected travel-style results surface.
+- Kept child ages and secondary state details visually subordinate so the page reads like a booking search entry point rather than an internal admin workflow.
+- Tightened the main row again so travelers now behave like a compact booking summary field with secondary controls hidden behind a popover instead of remaining exposed in the primary row.
 
 ### File List
 
@@ -238,8 +246,9 @@ openai/gpt-5.4
 
 ### Story Completion Status
 
-- Status set to `done`.
-- Story implementation completed, review issues fixed, and quality gates passed; sprint status updated to `done`.
+- Status set to `review`.
+- Status returned to `review` after the focused Search page remediation pass.
+- Story implementation, follow-up UX remediation, full horizontal redesign pass, and quality gates passed; sprint status updated to `review`.
 - Enhanced definition-of-done checklist manually validated against implemented code, tests, and story-tracking sections.
 
 ## Senior Developer Review (AI)
@@ -274,3 +283,6 @@ Approve
 - 2026-03-14: Implemented client-side search form state, Zod validation, blur-level accessibility behavior, date picker primitives, and immediate skeleton/result/empty/error rendering.
 - 2026-03-14: Added schema/state tests and completed quality gates (`pnpm test --run src/features/search/search-form-schema.test.ts src/features/search/search-form-state.test.ts`, `pnpm test --run`, `pnpm typecheck`, `pnpm build`), then moved story and sprint status to review.
 - 2026-03-14: Completed code review fixes by swapping in the Base UI popover, hardening blur validation, hiding supplier identity behind neutral source labels, adding jsdom-backed search-form integration tests, and moving story plus sprint status to done.
+- 2026-03-18: Completed a focused Story 2.6 UI/UX remediation pass on the authenticated Search home page, tightening form composition, strengthening the primary CTA, improving the idle/empty/results presentation, and re-running targeted plus full validation gates.
+- 2026-03-19: Reworked the Search page into a compact travel-style hero search experience with a horizontal search bar, destination-first hierarchy, compact traveler controls, and a more intentional results workspace; re-ran targeted tests, full test suite, typecheck, and build.
+- 2026-03-19: Refined the horizontal booking-search direction by converting travelers into a compact summary field with popover editing, reducing helper copy, tightening the hero row, and re-running targeted tests plus full validation gates.

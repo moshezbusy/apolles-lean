@@ -1,13 +1,21 @@
 "use client";
 
-import { Loader2Icon, SearchIcon } from "lucide-react";
+import {
+  CalendarDaysIcon,
+  Loader2Icon,
+  MapPinIcon,
+  MinusIcon,
+  PlusIcon,
+  SearchIcon,
+  UsersIcon,
+} from "lucide-react";
 import React from "react";
 import { type FormEvent, useMemo, useRef, useState, useTransition } from "react";
 
 import { searchHotelsAction } from "~/app/(app)/search/actions";
 import { Button } from "~/components/ui/button";
 import { Calendar } from "~/components/ui/calendar";
-import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Input } from "~/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "~/components/ui/popover";
 import {
@@ -62,7 +70,7 @@ function DateField({
 
   return (
     <div className="space-y-1">
-      <label htmlFor={id} className="text-sm font-medium text-text-primary">
+      <label htmlFor={id} className="sr-only">
         {label}
       </label>
 
@@ -75,7 +83,7 @@ function DateField({
             }}
             type="button"
             variant="outline"
-            className="w-full justify-start text-left font-normal"
+            className="h-12 w-full justify-start rounded-xl border-0 px-0 text-left text-sm font-semibold shadow-none"
             aria-invalid={error ? true : undefined}
             aria-describedby={getFieldDescribedBy(id, Boolean(error))}
           >
@@ -109,6 +117,11 @@ function DateField({
   );
 }
 
+function TravelersSummary({ adults, children }: { adults: number; children: number }) {
+  const guests = adults + children;
+  return `${guests} guest${guests === 1 ? "" : "s"} - 1 room`;
+}
+
 export function SearchForm() {
   const [formValues, setFormValues] = useState<SearchFormValues>(() => createDefaultSearchFormValues());
   const [fieldErrors, setFieldErrors] = useState<SearchFormErrors>({});
@@ -119,10 +132,22 @@ export function SearchForm() {
 
   const fieldRefs = useRef<Record<string, HTMLElement | null>>({});
 
-  const childAgeFields = useMemo(
-    () => Array.from({ length: formValues.children }, (_, index) => `childrenAges.${index}`),
-    [formValues.children],
-  );
+  const stayLength = useMemo(() => {
+    const checkInDate = parseIsoDate(formValues.checkIn);
+    const checkOutDate = parseIsoDate(formValues.checkOut);
+
+    if (!checkInDate || !checkOutDate) {
+      return null;
+    }
+
+    const millisecondsPerDay = 1000 * 60 * 60 * 24;
+    const difference = Math.round((checkOutDate.getTime() - checkInDate.getTime()) / millisecondsPerDay);
+    return difference > 0 ? difference : null;
+  }, [formValues.checkIn, formValues.checkOut]);
+
+  const formattedCheckIn = parseIsoDate(formValues.checkIn);
+  const formattedCheckOut = parseIsoDate(formValues.checkOut);
+  const [travelerEditorOpen, setTravelerEditorOpen] = useState(false);
 
   function setFieldRef(fieldName: string, element: HTMLElement | null) {
     fieldRefs.current[fieldName] = element;
@@ -149,6 +174,14 @@ export function SearchForm() {
     setFieldErrors((previous) => ({ ...previous, [fieldName]: message ?? "" }));
   }
 
+  function clearChildAgeErrors(nextErrors: SearchFormErrors) {
+    Object.keys(nextErrors)
+      .filter((key) => key.startsWith("childrenAges."))
+      .forEach((key) => {
+        nextErrors[key] = "";
+      });
+  }
+
   function handleChildrenCountChange(nextValue: string) {
     const parsed = Number(nextValue);
     if (!Number.isFinite(parsed)) {
@@ -160,9 +193,7 @@ export function SearchForm() {
 
     setFieldErrors((previous) => {
       const nextErrors: SearchFormErrors = { ...previous, children: "" };
-      childAgeFields.forEach((fieldName) => {
-        nextErrors[fieldName] = "";
-      });
+      clearChildAgeErrors(nextErrors);
       return nextErrors;
     });
   }
@@ -178,6 +209,22 @@ export function SearchForm() {
     });
 
     setFieldErrors((previous) => ({ ...previous, [`childrenAges.${index}`]: "" }));
+  }
+
+  function updateCounter(field: "adults" | "children", delta: number) {
+    if (field === "adults") {
+      const nextAdults = Math.min(6, Math.max(1, formValues.adults + delta));
+      updateField("adults", nextAdults);
+      return;
+    }
+
+    const nextValues = updateChildrenCount(formValues, formValues.children + delta);
+    setFormValues(nextValues);
+    setFieldErrors((previous) => {
+      const nextErrors: SearchFormErrors = { ...previous, children: "" };
+      clearChildAgeErrors(nextErrors);
+      return nextErrors;
+    });
   }
 
   function mergeRetriedResults(
@@ -259,193 +306,308 @@ export function SearchForm() {
     }
 
     setFieldErrors({});
+    setTravelerEditorOpen(false);
     submitValidatedSearch(validationResult.data);
   }
 
+  const travelerSummary =
+    formValues.children > 0 ? `${formValues.adults} adults, ${formValues.children} children` : `${formValues.adults} adults`;
+  const staySummary = stayLength ? `${stayLength} night${stayLength === 1 ? "" : "s"}` : "Select dates";
+
   return (
     <div className="space-y-6">
-      <Card className="border border-border-subtle">
-        <CardHeader>
-          <CardTitle>Search Criteria</CardTitle>
+      <Card className="overflow-visible border border-border-subtle/80 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] shadow-sm">
+        <CardHeader className="gap-1 pb-3">
+          <CardTitle className="text-[1.9rem] font-semibold tracking-tight">Search</CardTitle>
+          <CardDescription className="max-w-2xl text-sm text-text-secondary">
+            Compact booking-style hotel search for fast agent workflows.
+          </CardDescription>
         </CardHeader>
-        <CardContent>
+
+        <CardContent className="space-y-3 pt-0">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-              <div className="space-y-1 xl:col-span-2">
-                <label htmlFor="destination" className="text-sm font-medium text-text-primary">
-                  Destination
-                </label>
-                <Input
-                  id="destination"
-                  name="destination"
-                  ref={(element) => {
-                    setFieldRef("destination", element);
-                  }}
-                  value={formValues.destination}
-                  onChange={(event) => updateField("destination", event.currentTarget.value)}
-                  onBlur={(event) =>
-                    handleBlur("destination", {
-                      ...formValues,
-                      destination: event.currentTarget.value,
-                    })
-                  }
-                  aria-invalid={fieldErrors.destination ? true : undefined}
-                  aria-describedby={getFieldDescribedBy("destination", Boolean(fieldErrors.destination))}
-                  placeholder="City, area, or hotel"
-                />
-                {fieldErrors.destination ? (
-                  <p id={getFieldErrorId("destination")} className="text-xs text-error">
-                    {fieldErrors.destination}
-                  </p>
-                ) : null}
-              </div>
+            <div className="rounded-[1.75rem] border border-border-subtle/80 bg-background/90 p-3 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.45)]">
+              <div className="grid gap-3 xl:grid-cols-[minmax(0,2.3fr)_minmax(11.5rem,1fr)_minmax(11.5rem,1fr)_minmax(15rem,1.05fr)_auto] xl:items-stretch">
+                <div className="rounded-2xl border border-border-subtle/70 bg-card px-4 py-3 shadow-sm">
+                  <label
+                    htmlFor="destination"
+                    className="mb-2 flex items-center gap-2 text-[0.72rem] font-semibold tracking-[0.14em] text-text-secondary uppercase"
+                  >
+                    <MapPinIcon className="size-3.5 text-primary" aria-hidden="true" />
+                    Destination
+                  </label>
+                  <Input
+                    id="destination"
+                    name="destination"
+                    ref={(element) => {
+                      setFieldRef("destination", element);
+                    }}
+                    value={formValues.destination}
+                    onChange={(event) => updateField("destination", event.currentTarget.value)}
+                    onBlur={(event) =>
+                      handleBlur("destination", {
+                        ...formValues,
+                        destination: event.currentTarget.value,
+                      })
+                    }
+                    aria-invalid={fieldErrors.destination ? true : undefined}
+                    aria-describedby={getFieldDescribedBy("destination", Boolean(fieldErrors.destination))}
+                    placeholder="City, area, or hotel"
+                    className="h-12 border-0 px-0 text-base shadow-none focus-visible:ring-0"
+                  />
+                  {fieldErrors.destination ? (
+                    <p id={getFieldErrorId("destination")} className="pt-1 text-xs text-error">
+                      {fieldErrors.destination}
+                    </p>
+                  ) : (
+                    <p className="pt-1 text-xs text-text-secondary">City, area, landmark, or hotel name.</p>
+                  )}
+                </div>
 
-              <DateField
-                id="checkIn"
-                label="Check-in"
-                value={formValues.checkIn}
-                error={fieldErrors.checkIn}
-                onChange={(nextValue) => updateField("checkIn", nextValue)}
-                onBlur={(nextValue) =>
-                  handleBlur("checkIn", {
-                    ...formValues,
-                    checkIn: nextValue ?? formValues.checkIn,
-                  })
-                }
-                setFieldRef={setFieldRef}
-              />
-
-              <DateField
-                id="checkOut"
-                label="Check-out"
-                value={formValues.checkOut}
-                error={fieldErrors.checkOut}
-                onChange={(nextValue) => updateField("checkOut", nextValue)}
-                onBlur={(nextValue) =>
-                  handleBlur("checkOut", {
-                    ...formValues,
-                    checkOut: nextValue ?? formValues.checkOut,
-                  })
-                }
-                setFieldRef={setFieldRef}
-              />
-
-              <div className="space-y-1">
-                <label htmlFor="adults" className="text-sm font-medium text-text-primary">
-                  Adults
-                </label>
-                <Input
-                  id="adults"
-                  name="adults"
-                  ref={(element) => {
-                    setFieldRef("adults", element);
-                  }}
-                  type="number"
-                  min={1}
-                  max={6}
-                  value={formValues.adults}
-                  onChange={(event) => updateField("adults", Number(event.currentTarget.value))}
-                  onBlur={(event) =>
-                    handleBlur("adults", {
-                      ...formValues,
-                      adults: Number(event.currentTarget.value),
-                    })
-                  }
-                  aria-invalid={fieldErrors.adults ? true : undefined}
-                  aria-describedby={getFieldDescribedBy("adults", Boolean(fieldErrors.adults))}
-                />
-                {fieldErrors.adults ? (
-                  <p id={getFieldErrorId("adults")} className="text-xs text-error">
-                    {fieldErrors.adults}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <div className="space-y-1">
-                <label htmlFor="children" className="text-sm font-medium text-text-primary">
-                  Children
-                </label>
-                <Input
-                  id="children"
-                  name="children"
-                  ref={(element) => {
-                    setFieldRef("children", element);
-                  }}
-                  type="number"
-                  min={0}
-                  value={formValues.children}
-                  onChange={(event) => handleChildrenCountChange(event.currentTarget.value)}
-                  onBlur={(event) =>
-                    handleBlur("children", updateChildrenCount(formValues, Number(event.currentTarget.value)))
-                  }
-                  aria-invalid={fieldErrors.children ? true : undefined}
-                  aria-describedby={getFieldDescribedBy("children", Boolean(fieldErrors.children))}
-                />
-                {fieldErrors.children ? (
-                  <p id={getFieldErrorId("children")} className="text-xs text-error">
-                    {fieldErrors.children}
-                  </p>
-                ) : null}
-              </div>
-
-              {formValues.childrenAges.map((age, index) => {
-                const fieldName = `childrenAges.${index}`;
-
-                return (
-                  <div key={fieldName} className="space-y-1">
-                    <label htmlFor={fieldName} className="text-sm font-medium text-text-primary">
-                      Child {index + 1} age
-                    </label>
-                    <Input
-                      id={fieldName}
-                      name={fieldName}
-                      ref={(element) => {
-                        setFieldRef(fieldName, element);
-                      }}
-                      type="number"
-                      min={0}
-                      max={17}
-                      value={age}
-                      onChange={(event) => handleChildAgeChange(index, event.currentTarget.value)}
-                      onBlur={(event) => {
-                        const nextChildrenAges = [...formValues.childrenAges];
-                        nextChildrenAges[index] = event.currentTarget.value;
-
-                        handleBlur(fieldName, {
-                          ...formValues,
-                          childrenAges: nextChildrenAges,
-                        });
-                      }}
-                      aria-invalid={fieldErrors[fieldName] ? true : undefined}
-                      aria-describedby={getFieldDescribedBy(fieldName, Boolean(fieldErrors[fieldName]))}
-                    />
-                    {fieldErrors[fieldName] ? (
-                      <p id={getFieldErrorId(fieldName)} className="text-xs text-error">
-                        {fieldErrors[fieldName]}
-                      </p>
-                    ) : null}
+                <div className="rounded-2xl border border-border-subtle/70 bg-card px-4 py-3 shadow-sm">
+                  <div className="mb-2 flex items-center gap-2 text-[0.72rem] font-semibold tracking-[0.14em] text-text-secondary uppercase">
+                    <CalendarDaysIcon className="size-3.5 text-primary" aria-hidden="true" />
+                    Check-in
                   </div>
-                );
-              })}
+                  <DateField
+                    id="checkIn"
+                    label="Check-in"
+                    value={formValues.checkIn}
+                    error={fieldErrors.checkIn}
+                    onChange={(nextValue) => updateField("checkIn", nextValue)}
+                    onBlur={(nextValue) =>
+                      handleBlur("checkIn", {
+                        ...formValues,
+                        checkIn: nextValue ?? formValues.checkIn,
+                      })
+                    }
+                    setFieldRef={setFieldRef}
+                  />
+                </div>
+
+                <div className="rounded-2xl border border-border-subtle/70 bg-card px-4 py-3 shadow-sm">
+                  <div className="mb-2 flex items-center gap-2 text-[0.72rem] font-semibold tracking-[0.14em] text-text-secondary uppercase">
+                    <CalendarDaysIcon className="size-3.5 text-primary" aria-hidden="true" />
+                    Check-out
+                  </div>
+                  <DateField
+                    id="checkOut"
+                    label="Check-out"
+                    value={formValues.checkOut}
+                    error={fieldErrors.checkOut}
+                    onChange={(nextValue) => updateField("checkOut", nextValue)}
+                    onBlur={(nextValue) =>
+                      handleBlur("checkOut", {
+                        ...formValues,
+                        checkOut: nextValue ?? formValues.checkOut,
+                      })
+                    }
+                    setFieldRef={setFieldRef}
+                  />
+                </div>
+
+                <div className="rounded-2xl border border-border-subtle/70 bg-card px-4 py-3 shadow-sm">
+                  <div className="mb-2 flex items-center gap-2 text-[0.72rem] font-semibold tracking-[0.14em] text-text-secondary uppercase">
+                    <UsersIcon className="size-3.5 text-primary" aria-hidden="true" />
+                    Travelers
+                  </div>
+                  <Popover open={travelerEditorOpen} onOpenChange={setTravelerEditorOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-12 w-full justify-start rounded-xl border-0 px-0 text-left text-sm font-semibold shadow-none"
+                      >
+                        <span className="truncate">{TravelersSummary({ adults: formValues.adults, children: formValues.children })}</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[22rem] rounded-2xl border border-border-subtle/80 p-4" align="end">
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold text-text-primary">Travelers and room</p>
+                          <p className="text-xs text-text-secondary">Keep the main bar compact and adjust guest details here.</p>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle/70 bg-background px-3 py-3">
+                            <div>
+                              <p className="text-sm font-medium text-text-primary">Adults</p>
+                              <p className="text-xs text-text-secondary">Ages 18+</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button type="button" variant="ghost" size="icon-sm" onClick={() => updateCounter("adults", -1)}>
+                                <MinusIcon className="size-3.5" />
+                              </Button>
+                              <Input
+                                id="adults"
+                                name="adults"
+                                ref={(element) => {
+                                  setFieldRef("adults", element);
+                                }}
+                                type="number"
+                                min={1}
+                                max={6}
+                                value={formValues.adults}
+                                onChange={(event) => updateField("adults", Number(event.currentTarget.value))}
+                                onBlur={(event) =>
+                                  handleBlur("adults", {
+                                    ...formValues,
+                                    adults: Number(event.currentTarget.value),
+                                  })
+                                }
+                                aria-invalid={fieldErrors.adults ? true : undefined}
+                                aria-describedby={getFieldDescribedBy("adults", Boolean(fieldErrors.adults))}
+                                className="h-10 w-12 border-0 px-0 text-center text-sm font-semibold shadow-none focus-visible:ring-0"
+                              />
+                              <Button type="button" variant="ghost" size="icon-sm" onClick={() => updateCounter("adults", 1)}>
+                                <PlusIcon className="size-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                          {fieldErrors.adults ? (
+                            <p id={getFieldErrorId("adults")} className="-mt-1 text-xs text-error">
+                              {fieldErrors.adults}
+                            </p>
+                          ) : null}
+
+                          <div className="flex items-center justify-between gap-3 rounded-xl border border-border-subtle/70 bg-background px-3 py-3">
+                            <div>
+                              <p className="text-sm font-medium text-text-primary">Children</p>
+                              <p className="text-xs text-text-secondary">Ages 0-17</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button type="button" variant="ghost" size="icon-sm" onClick={() => updateCounter("children", -1)}>
+                                <MinusIcon className="size-3.5" />
+                              </Button>
+                              <Input
+                                id="children"
+                                name="children"
+                                ref={(element) => {
+                                  setFieldRef("children", element);
+                                }}
+                                type="number"
+                                min={0}
+                                value={formValues.children}
+                                onChange={(event) => handleChildrenCountChange(event.currentTarget.value)}
+                                onBlur={(event) =>
+                                  handleBlur("children", updateChildrenCount(formValues, Number(event.currentTarget.value)))
+                                }
+                                aria-invalid={fieldErrors.children ? true : undefined}
+                                aria-describedby={getFieldDescribedBy("children", Boolean(fieldErrors.children))}
+                                className="h-10 w-12 border-0 px-0 text-center text-sm font-semibold shadow-none focus-visible:ring-0"
+                              />
+                              <Button type="button" variant="ghost" size="icon-sm" onClick={() => updateCounter("children", 1)}>
+                                <PlusIcon className="size-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                          {fieldErrors.children ? (
+                            <p id={getFieldErrorId("children")} className="-mt-1 text-xs text-error">
+                              {fieldErrors.children}
+                            </p>
+                          ) : null}
+
+                          <div className="rounded-xl border border-border-subtle/70 bg-background px-3 py-3">
+                            <p className="text-sm font-medium text-text-primary">Rooms</p>
+                            <p className="mt-1 text-xs text-text-secondary">Fixed at 1 room for the current MVP scope.</p>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                          <Button type="button" onClick={() => setTravelerEditorOpen(false)}>
+                            Done
+                          </Button>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <Button
+                  type="submit"
+                  size="lg"
+                  disabled={isPending}
+                  className="h-full min-h-16 rounded-2xl px-6 text-sm font-semibold shadow-sm xl:min-h-0"
+                >
+                  {isPending ? (
+                    <>
+                      <Loader2Icon className="size-4 animate-spin" />
+                      Searching...
+                    </>
+                  ) : (
+                    <>
+                      <SearchIcon className="size-4" />
+                      Search hotels
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
 
-            <div className="flex justify-end">
-              <Button type="submit" disabled={isPending}>
-                {isPending ? (
-                  <>
-                    <Loader2Icon className="size-4 animate-spin" />
-                    Searching...
-                  </>
-                ) : (
-                  <>
-                    <SearchIcon className="size-4" />
-                    Search hotels
-                  </>
-                )}
-              </Button>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+              <span className="rounded-full border border-border-subtle bg-card px-3 py-1.5">{staySummary}</span>
+              <span className="rounded-full border border-border-subtle bg-card px-3 py-1.5">{travelerSummary}</span>
+              <span className="rounded-full border border-border-subtle bg-card px-3 py-1.5">1 room</span>
+              {formattedCheckIn && formattedCheckOut ? (
+                <span className="rounded-full border border-border-subtle bg-card px-3 py-1.5">
+                  {DATE_LABEL_FORMATTER.format(formattedCheckIn)} - {DATE_LABEL_FORMATTER.format(formattedCheckOut)}
+                </span>
+              ) : null}
+              <span className="rounded-full border border-border-subtle bg-card px-3 py-1.5">Validated live search</span>
             </div>
+
+            {formValues.childrenAges.length > 0 ? (
+              <div className="rounded-2xl border border-border-subtle/80 bg-card px-4 py-4 shadow-sm">
+                <div className="mb-3">
+                  <p className="text-sm font-semibold text-text-primary">Children ages</p>
+                  <p className="text-xs text-text-secondary">Keep these as a compact secondary detail for the search request.</p>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  {formValues.childrenAges.map((age, index) => {
+                    const fieldName = `childrenAges.${index}`;
+
+                    return (
+                      <div key={fieldName} className="space-y-1.5 rounded-xl border border-border-subtle/70 bg-background px-3 py-3">
+                        <label htmlFor={fieldName} className="text-xs font-semibold tracking-[0.14em] text-text-secondary uppercase">
+                          Child {index + 1}
+                        </label>
+                        <Input
+                          id={fieldName}
+                          name={fieldName}
+                          ref={(element) => {
+                            setFieldRef(fieldName, element);
+                          }}
+                          type="number"
+                          min={0}
+                          max={17}
+                          value={age}
+                          onChange={(event) => handleChildAgeChange(index, event.currentTarget.value)}
+                          onBlur={(event) => {
+                            const nextChildrenAges = [...formValues.childrenAges];
+                            nextChildrenAges[index] = event.currentTarget.value;
+
+                            handleBlur(fieldName, {
+                              ...formValues,
+                              childrenAges: nextChildrenAges,
+                            });
+                          }}
+                          aria-invalid={fieldErrors[fieldName] ? true : undefined}
+                          aria-describedby={getFieldDescribedBy(fieldName, Boolean(fieldErrors[fieldName]))}
+                          placeholder="Age"
+                          className="h-10 shadow-none"
+                        />
+                        {fieldErrors[fieldName] ? (
+                          <p id={getFieldErrorId(fieldName)} className="text-xs text-error">
+                            {fieldErrors[fieldName]}
+                          </p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
           </form>
         </CardContent>
       </Card>
